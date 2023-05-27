@@ -66,7 +66,7 @@ public class Chat {
             return;
         }
 
-        ClienteTCP cliente = new ClienteTCP(servidor, 50000, archivo);
+        ClienteTCP cliente = new ClienteTCP(servidor, 60000, archivo);
         try {
             cliente.inicia();
         } catch (Exception e) {

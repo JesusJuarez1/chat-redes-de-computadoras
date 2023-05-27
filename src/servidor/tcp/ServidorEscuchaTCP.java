@@ -25,29 +25,24 @@ public class ServidorEscuchaTCP extends Thread {
             Socket clienteSocket = serverSocket.accept();
             System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
 
-            // Creamos el flujo de entrada para recibir los datos del cliente
             DataInputStream dataInputStream = new DataInputStream(clienteSocket.getInputStream());
 
-            // Leemos el nombre del archivo enviado por el cliente
+            // Recibir el nombre del archivo enviado por el cliente
             String nombreArchivo = dataInputStream.readUTF();
             System.out.println("Nombre del archivo recibido: " + nombreArchivo);
 
-            // Creamos el flujo de salida para escribir los datos en el archivo
+            // Crear el flujo de salida para escribir los datos en el archivo
             String rutaArchivo = "../archivos/" + nombreArchivo;
             FileOutputStream fileOutputStream = new FileOutputStream(rutaArchivo);
 
-            // Creamos un buffer para leer los datos del flujo de entrada
             byte[] buffer = new byte[1024];
             int bytesRead;
-
-            // Leemos los datos del flujo de entrada y los escribimos en el archivo
             while ((bytesRead = dataInputStream.read(buffer)) != -1) {
                 fileOutputStream.write(buffer, 0, bytesRead);
             }
 
             System.out.println("Archivo recibido y guardado correctamente.");
 
-            // Cerramos los flujos y el socket
             fileOutputStream.close();
             dataInputStream.close();
             clienteSocket.close();

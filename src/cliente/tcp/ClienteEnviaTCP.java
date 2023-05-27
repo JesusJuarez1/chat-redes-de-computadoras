@@ -37,6 +37,10 @@ public class ClienteEnviaTCP extends Thread{
         FileInputStream fis = null;
         try {
             fis = new FileInputStream(archivo);
+
+            // Enviar el nombre del archivo al servidor
+            out.writeUTF(archivo.getName());
+
             byte[] buffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = fis.read(buffer)) != -1) {
@@ -46,6 +50,6 @@ public class ClienteEnviaTCP extends Thread{
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
-    }
+        }
     }
 }

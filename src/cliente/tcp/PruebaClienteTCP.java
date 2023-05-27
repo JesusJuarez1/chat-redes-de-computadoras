@@ -1,8 +1,11 @@
 package cliente.tcp;
 
+import java.io.File;
+
 public class PruebaClienteTCP{
     public static void main(String args[])throws Exception{
-        ClienteTCP clienteTCP =new ClienteTCP("192.168.0.121",60000,"gola");
+        ClienteTCP clienteTCP =new ClienteTCP("192.168.0.121",60000,
+                new File("C:\\Users\\jesus\\OneDrive\\Documentos\\Escuela\\Redes_laboratorio\\proyecto\\sockets_java.zip"));
         clienteTCP.inicia();
     }
 }
