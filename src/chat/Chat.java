@@ -70,7 +70,7 @@ public class Chat {
         try {
             cliente.inicia();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            System.err.println(e.getMessage());
         }
 
         // Esperar a que los hilos del cliente finalicen

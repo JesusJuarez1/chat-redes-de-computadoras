@@ -34,9 +34,8 @@ public class ClienteEnviaTCP extends Thread{
     
     public void run () {
         // Código para enviar archivo
-        FileInputStream fis = null;
         try {
-            fis = new FileInputStream(archivo);
+            FileInputStream fis = new FileInputStream(archivo);
 
             // Enviar el nombre del archivo al servidor
             out.writeUTF(archivo.getName());
@@ -48,10 +47,17 @@ public class ClienteEnviaTCP extends Thread{
                 System.out.println("Bytes enviados: " + bytesRead);
             }
             fis.close();
-            socket.close();
+            System.out.println("Salio");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
+        } finally {
+            try {
+                socket.close();
+                System.out.println("SalioX22");
+            } catch (IOException e) {
+                System.err.println(e.getMessage());
+            }
         }
     }
 }

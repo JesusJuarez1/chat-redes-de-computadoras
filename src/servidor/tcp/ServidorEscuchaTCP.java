@@ -29,7 +29,7 @@ public class ServidorEscuchaTCP extends Thread {
 
             // Recibir el nombre del archivo enviado por el cliente
             String nombreArchivo = dataInputStream.readUTF();
-            System.out.println("Nombre del archivo recibido: " + nombreArchivo);
+            System.out.println("Nombre del archivo a recibir: " + nombreArchivo);
 
             //String directorioActual = System.getProperty("user.dir");
             //System.out.println("Directorio actual: " + directorioActual);
