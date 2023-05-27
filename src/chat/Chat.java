@@ -30,11 +30,7 @@ public class Chat {
                     mensajeriaTexto();
                     break;
                 case 2:
-                    // Opción de enviar archivo
-                    System.out.print("Ingrese la ruta del archivo: ");
-                    String rutaArchivo = scanner.nextLine();
-                    // Lógica para enviar el archivo
-                    System.out.println("Archivo enviado: " + rutaArchivo);
+                    enviarArchivos();
                     break;
                 case 3:
                     // Opción de realizar videollamada
@@ -56,12 +52,31 @@ public class Chat {
         scanner.close();
     }
 
+    private void enviarArchivos() {
+        String servidor = obtenerDireccionIPDestinatario();
+        ClienteTCP cliente = ClienteTCP(servidor, 50000);
+        try {
+            cliente.inicia();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Esperar a que los hilos del cliente finalicen
+        while (cliente.isActivo()) {
+            try {
+                Thread.sleep(100); // Esperar 100 milisegundos antes de verificar nuevamente
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     /**
      * Llama las clases necesarias para enviar y recibir mensajes
      */
     private void mensajeriaTexto() {
         String servidor = obtenerDireccionIPDestinatario();
-        ClienteUDP cliente = new ClienteUDP(servidor, 30000);
+        ClienteUDP cliente = new ClienteUDP(servidor, 50000);
         try {
             cliente.inicia();
         } catch (Exception e) {

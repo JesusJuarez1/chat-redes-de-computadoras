@@ -14,19 +14,19 @@ public class ServidorEscuchaUDP extends Thread{
     protected DatagramPacket paquete;
     protected byte[] mensaje_bytes;
     protected DatagramPacket envPaquete;
-
     protected BufferedReader in;
+    protected String mensajeComp;
     
     public ServidorEscuchaUDP(int puertoS) throws Exception{
         //Creamos el socket
         PUERTO_SERVER=puertoS;
         socket = new DatagramSocket(puertoS);
+        in = new BufferedReader(new InputStreamReader(System.in));
     }
     public void run() {
         try {
             
             String mensaje ="";
-            String mensajeComp ="";
                        
             //Iniciamos el bucle
             do {
@@ -48,8 +48,21 @@ public class ServidorEscuchaUDP extends Thread{
                 puertoCliente = paquete.getPort();
                 addressCliente = paquete.getAddress();
 
-                mensajeComp = in.readLine();
-                enviaMensaje(mensajeComp);
+                // Crear un hilo para la lectura de las entradas del servidor
+                Thread inputThread = new Thread(() -> {
+                    try {
+                        while (true) {
+                            mensajeComp = in.readLine();
+                            enviaMensaje(mensajeComp);
+                        }
+                    } catch (IOException e) {
+                        System.err.println("Error al leer la entrada del servidor: " + e.getMessage());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                inputThread.start();
+
                 if (mensaje.startsWith("fin")) {
                     mensajeComp="Transmisión con el servidor finalizada...";
                     enviaMensaje(mensajeComp);
