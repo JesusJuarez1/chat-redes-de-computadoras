@@ -31,8 +31,11 @@ public class ServidorEscuchaTCP extends Thread {
             String nombreArchivo = dataInputStream.readUTF();
             System.out.println("Nombre del archivo recibido: " + nombreArchivo);
 
+            //String directorioActual = System.getProperty("user.dir");
+            //System.out.println("Directorio actual: " + directorioActual);
+
             // Crear el flujo de salida para escribir los datos en el archivo
-            String rutaArchivo = "../archivos/" + nombreArchivo;
+            String rutaArchivo = "archivos/" + nombreArchivo;
             FileOutputStream fileOutputStream = new FileOutputStream(rutaArchivo);
 
             byte[] buffer = new byte[1024];

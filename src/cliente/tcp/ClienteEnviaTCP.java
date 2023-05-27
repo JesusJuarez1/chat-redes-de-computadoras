@@ -45,8 +45,10 @@ public class ClienteEnviaTCP extends Thread{
             int bytesRead;
             while ((bytesRead = fis.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
+                System.out.println("Bytes enviados: " + bytesRead);
             }
             fis.close();
+            socket.close();
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
