@@ -34,6 +34,15 @@ public class ServidorEscuchaUDP extends Thread {
                 String direccionIPRemitente = paquete.getAddress().getHostAddress();
                 int puertoRemitente = paquete.getPort();
 
+                // Lo formateamos
+                mensaje_bytes=new byte[paquete.getLength()];
+                mensaje_bytes=paquete.getData();
+                String mensaje = new String(mensaje_bytes,0,paquete.getLength()).trim();
+
+                // Lo mostramos por pantalla
+                System.out.println("Mensaje recibido \""+mensaje+"\" del cliente "+
+                        paquete.getAddress()+"#"+paquete.getPort());
+
                 // Verificamos si el remitente está registrado como cliente
                 if (clientes.containsKey(direccionIPRemitente) && clientes.get(direccionIPRemitente) == puertoRemitente) {
                     // El remitente está registrado, enviamos el mensaje al otro cliente

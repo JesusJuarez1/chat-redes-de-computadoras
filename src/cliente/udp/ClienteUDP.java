@@ -7,6 +7,7 @@ import java.io.*;
 public class ClienteUDP{
     protected final int PUERTO_SERVER;
     protected final String SERVER;
+    protected boolean activo;
     
     public ClienteUDP(String servidor, int puertoS){
         PUERTO_SERVER=puertoS;
@@ -21,5 +22,22 @@ public class ClienteUDP{
         
         clienteEnvUDP.start();
         clienteEscUDP.start();
+
+        clienteEnvUDP.start();
+        clienteEscUDP.start();
+
+        // Indicar que los hilos están activos
+        activo = true;
+
+        // Esperar a que los hilos finalicen
+        clienteEnvUDP.join();
+        clienteEscUDP.join();
+
+        // Indicar que los hilos han finalizado
+        activo = false;
+    }
+
+    public boolean isActivo() {
+        return activo;
     }
 }

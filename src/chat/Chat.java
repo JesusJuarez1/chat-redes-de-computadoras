@@ -67,6 +67,15 @@ public class Chat {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+        // Esperar a que los hilos del cliente finalicen
+        while (cliente.isActivo()) {
+            try {
+                Thread.sleep(100); // Esperar 100 milisegundos antes de verificar nuevamente
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     /**
