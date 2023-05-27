@@ -1,85 +1,78 @@
 package servidor.udp;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.Map;
+import java.net.*;
+import java.io.*;
 
-public class ServidorEscuchaUDP extends Thread {
+public class ServidorEscuchaUDP extends Thread{
     protected DatagramSocket socket;
     protected final int PUERTO_SERVER;
-    protected final int MAX_BUFFER = 256;
-    protected Map<String, Integer> clientes;
+    protected int puertoCliente=0;
+    
+    protected InetAddress addressCliente;
+    protected byte[] mensaje2_bytes;
+    protected final int MAX_BUFFER=256;
+    protected DatagramPacket paquete;
+    protected byte[] mensaje_bytes;
+    protected DatagramPacket envPaquete;
 
-    public ServidorEscuchaUDP(int puertoS) throws Exception {
-        PUERTO_SERVER = puertoS;
+    protected BufferedReader in;
+    
+    public ServidorEscuchaUDP(int puertoS) throws Exception{
+        //Creamos el socket
+        PUERTO_SERVER=puertoS;
         socket = new DatagramSocket(puertoS);
-        clientes = new HashMap<>();
     }
-
     public void run() {
         try {
-            byte[] mensaje_bytes;
-            DatagramPacket paquete;
-
-            // Iniciamos el bucle
-            while (true) {
+            
+            String mensaje ="";
+            String mensajeComp ="";
+                       
+            //Iniciamos el bucle
+            do {
                 // Recibimos el paquete
-                mensaje_bytes = new byte[MAX_BUFFER];
-                paquete = new DatagramPacket(mensaje_bytes, MAX_BUFFER);
+                mensaje_bytes=new byte[MAX_BUFFER];
+                paquete = new DatagramPacket(mensaje_bytes,MAX_BUFFER);
                 socket.receive(paquete);
-
-                // Obtenemos la dirección IP y el puerto del remitente
-                String direccionIPRemitente = paquete.getAddress().getHostAddress();
-                int puertoRemitente = paquete.getPort();
-
+                
                 // Lo formateamos
                 mensaje_bytes=new byte[paquete.getLength()];
                 mensaje_bytes=paquete.getData();
-                String mensaje = new String(mensaje_bytes,0,paquete.getLength()).trim();
-
+                mensaje = new String(mensaje_bytes,0,paquete.getLength()).trim();
+                
                 // Lo mostramos por pantalla
                 System.out.println("Mensaje recibido \""+mensaje+"\" del cliente "+
                         paquete.getAddress()+"#"+paquete.getPort());
+                
+                //Obtenemos IP Y PUERTO
+                puertoCliente = paquete.getPort();
+                addressCliente = paquete.getAddress();
 
-                // Verificamos si el remitente está registrado como cliente
-                if (clientes.containsKey(direccionIPRemitente) && clientes.get(direccionIPRemitente) == puertoRemitente) {
-                    // El remitente está registrado, enviamos el mensaje al otro cliente
-                    enviarMensajeACliente(opuestoCliente(direccionIPRemitente), mensaje_bytes);
-                } else {
-                    // El remitente no está registrado, lo registramos como nuevo cliente
-                    registrarCliente(direccionIPRemitente, puertoRemitente);
+                mensajeComp = in.readLine();
+                enviaMensaje(mensajeComp);
+                if (mensaje.startsWith("fin")) {
+                    mensajeComp="Transmisión con el servidor finalizada...";
+                    enviaMensaje(mensajeComp);
                 }
-            }
-        } catch (Exception e) {
+
+            } while (!mensaje.startsWith("fin"));
+        }
+        catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
         }
     }
+    private void enviaMensaje(String mensajeComp) throws Exception{
+        mensaje2_bytes = new byte[mensajeComp.length()];
+        mensaje2_bytes = mensajeComp.getBytes();
+    
+        //Preparamos el paquete que queremos enviar
+        envPaquete = new DatagramPacket(mensaje2_bytes,mensaje2_bytes.length,addressCliente,puertoCliente);
 
-    private void registrarCliente(String direccionIP, int puerto) {
-        clientes.put(direccionIP, puerto);
-        System.out.println("Cliente registrado: " + direccionIP + ":" + puerto);
-    }
-
-    private void enviarMensajeACliente(String direccionIP, int puerto, byte[] mensaje) throws Exception {
-        InetAddress addressCliente = InetAddress.getByName(direccionIP);
-        DatagramPacket paquete = new DatagramPacket(mensaje, mensaje.length, addressCliente, puerto);
-        socket.send(paquete);
-    }
-
-    private void enviarMensajeACliente(String direccionIP, byte[] mensaje) throws Exception {
-        int puerto = clientes.get(direccionIP);
-        enviarMensajeACliente(direccionIP, puerto, mensaje);
-    }
-
-    private String opuestoCliente(String direccionIP) {
-        for (String cliente : clientes.keySet()) {
-            if (!cliente.equals(direccionIP)) {
-                return cliente;
-            }
-        }
-        return null;
+        // realizamos el envio
+        socket.send(envPaquete);
+        System.out.println("Mensaje saliente del servidor \""+
+                (new String(envPaquete.getData(),0,envPaquete.getLength()))+
+                "\" al cliente " + addressCliente + ": "+puertoCliente);
     }
 }

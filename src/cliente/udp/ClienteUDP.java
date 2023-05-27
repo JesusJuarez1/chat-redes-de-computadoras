@@ -12,6 +12,7 @@ public class ClienteUDP{
     public ClienteUDP(String servidor, int puertoS){
         PUERTO_SERVER=puertoS;
         SERVER=servidor;
+        activo = false;
     }
     
     public void inicia()throws Exception{
@@ -20,9 +21,6 @@ public class ClienteUDP{
         ClienteEscuchaUDP clienteEnvUDP=new ClienteEscuchaUDP(socket);
         ClienteEnviaUDP clienteEscUDP=new ClienteEnviaUDP(socket, SERVER, PUERTO_SERVER);
         
-        clienteEnvUDP.start();
-        clienteEscUDP.start();
-
         clienteEnvUDP.start();
         clienteEscUDP.start();
 
