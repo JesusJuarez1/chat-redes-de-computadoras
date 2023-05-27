@@ -64,6 +64,7 @@ public class ServidorEscuchaUDP extends Thread{
                 inputThread.start();
 
                 if (mensaje.startsWith("fin")) {
+                    enviaMensaje("fin");
                     mensajeComp="Transmisión con el servidor finalizada...";
                     enviaMensaje(mensajeComp);
                 }

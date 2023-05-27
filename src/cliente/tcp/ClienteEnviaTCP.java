@@ -12,8 +12,9 @@ public class ClienteEnviaTCP extends Thread{
     protected final int PUERTO_SERVER;
     protected final String SERVER;
     protected DataOutputStream out;
+    protected final File archivo;
     
-    public ClienteEnviaTCP(String servidor, int puertoS)throws Exception{
+    public ClienteEnviaTCP(String servidor, int puertoS, File archivo)throws Exception{
         PUERTO_SERVER=puertoS;
         SERVER=servidor;
         
@@ -28,31 +29,23 @@ public class ClienteEnviaTCP extends Thread{
         // Declaramos e instanciamos el objeto DataOutputStream
         // que nos valdrá para enviar datos al servidor destino
         out =new DataOutputStream(socket.getOutputStream());
+        this.archivo=archivo;
     }
     
     public void run () {
-        // declaramos una variable de tipo string
-        String mensaje="";
-
-        // Declaramos un bloque try y catch para controlar la ejecución del subprograma
+        // Código para enviar archivo
+        FileInputStream fis = null;
         try {
-            // Creamos un bucle do while en el que enviamos al servidor el mensaje
-            // los datos que hemos obtenido despues de ejecutar la función
-            // "readLine" en la instancia "in"
-            do {
-                mensaje = in.readLine();
-                // enviamos el mensaje codificado en UTF
-                out.writeUTF(mensaje);
-                // mientras el mensaje no encuentre la cadena fin, seguiremos ejecutando
-                // el bucle do-while
-            } while (!mensaje.startsWith("fin"));
-        }
-        // utilizamos el catch para capturar los errores que puedan surgir
-        catch (Exception e) {
-            // si existen errores los mostrará en la consola y después saldrá del
-            // programa
+            fis = new FileInputStream(archivo);
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+            fis.close();
+        } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
-        }
+    }
     }
 }

@@ -1,17 +1,13 @@
 package servidor.tcp;
 
-import java.net.*;
-//importar la libreria java.net
- 
-import java.io.*;
-//importar la libreria java.io
-// declaramos la clase servidortcp
- 
+import java.io.DataInputStream;
+import java.io.FileOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+
 public class ServidorEscuchaTCP extends Thread {
     // declaramos un objeto ServerSocket para realizar la comunicación
-    protected ServerSocket socket;
-    protected DataInputStream in;
-    protected Socket socket_cli;
+    protected ServerSocket serverSocket;
     protected final int PUERTO_SERVER;
     
     public ServidorEscuchaTCP(int puertoS)throws Exception{
@@ -19,35 +15,43 @@ public class ServidorEscuchaTCP extends Thread {
         // Instanciamos un ServerSocket con la dirección del destino y el
         // puerto que vamos a utilizar para la comunicación
 
-        socket = new ServerSocket(PUERTO_SERVER);
+        serverSocket = new ServerSocket(PUERTO_SERVER);
     }
     // método principal main de la clase
     public void run() {
         // Declaramos un bloque try y catch para controlar la ejecución del subprograma
         try {
-            // Creamos un socket_cli al que le pasamos el contenido del objeto socket después
-            // de ejecutar la función accept que nos permitirá aceptar conexiones de clientes
-            socket_cli = socket.accept();
+            System.out.println("Servidor escuchando en el puerto " + PUERTO_SERVER + "...");
+            Socket clienteSocket = serverSocket.accept();
+            System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
 
-            // Declaramos e instanciamos el objeto DataInputStream
-            // que nos valdrá para recibir datos del cliente
+            // Creamos el flujo de entrada para recibir los datos del cliente
+            DataInputStream dataInputStream = new DataInputStream(clienteSocket.getInputStream());
 
-            in =new DataInputStream(socket_cli.getInputStream());
+            // Leemos el nombre del archivo enviado por el cliente
+            String nombreArchivo = dataInputStream.readUTF();
+            System.out.println("Nombre del archivo recibido: " + nombreArchivo);
 
-            // Creamos un bucle do while en el que recogemos el mensaje
-            // que nos ha enviado el cliente y después lo mostramos
-            // por consola
-            do {
-                String mensaje ="";
-                mensaje = in.readUTF();
-                System.out.println(mensaje);
-            } while (true);
-        }
-        // utilizamos el catch para capturar los errores que puedan surgir
-        catch (Exception e) {
+            // Creamos el flujo de salida para escribir los datos en el archivo
+            String rutaArchivo = "../archivos/" + nombreArchivo;
+            FileOutputStream fileOutputStream = new FileOutputStream(rutaArchivo);
 
-            // si existen errores los mostrará en la consola y después saldrá del
-            // programa
+            // Creamos un buffer para leer los datos del flujo de entrada
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+
+            // Leemos los datos del flujo de entrada y los escribimos en el archivo
+            while ((bytesRead = dataInputStream.read(buffer)) != -1) {
+                fileOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            System.out.println("Archivo recibido y guardado correctamente.");
+
+            // Cerramos los flujos y el socket
+            fileOutputStream.close();
+            dataInputStream.close();
+            clienteSocket.close();
+        } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
         }

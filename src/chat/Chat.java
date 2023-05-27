@@ -3,6 +3,9 @@ package chat;
 import cliente.tcp.ClienteTCP;
 import cliente.udp.ClienteUDP;
 
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
 import java.util.Scanner;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -48,13 +51,22 @@ public class Chat {
             }
             System.out.println();
         }
-
         scanner.close();
     }
 
     private void enviarArchivos() {
         String servidor = obtenerDireccionIPDestinatario();
-        ClienteTCP cliente = ClienteTCP(servidor, 50000);
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Ingresa la ruta del archivo: ");
+        String rutaArchivo = scanner.nextLine();
+
+        File archivo = new File(rutaArchivo);
+        if (!archivo.exists()) {
+            System.err.println("El archivo especificado no existe.");
+            return;
+        }
+
+        ClienteTCP cliente = new ClienteTCP(servidor, 50000, archivo);
         try {
             cliente.inicia();
         } catch (Exception e) {
