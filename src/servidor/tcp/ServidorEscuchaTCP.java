@@ -19,39 +19,42 @@ public class ServidorEscuchaTCP extends Thread {
     }
     // método principal main de la clase
     public void run() {
-        // Declaramos un bloque try y catch para controlar la ejecución del subprograma
-        try {
-            System.out.println("Servidor escuchando en el puerto " + PUERTO_SERVER + "...");
-            Socket clienteSocket = serverSocket.accept();
-            System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
+        // Un bucle para que al terminar de recibir un archivo no termine de escuchar el servidor
+        while (true) {
+            // Declaramos un bloque try y catch para controlar la ejecución del subprograma
+            try {
+                System.out.println("Servidor escuchando en el puerto " + PUERTO_SERVER + "...");
+                Socket clienteSocket = serverSocket.accept();
+                System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
 
-            DataInputStream dataInputStream = new DataInputStream(clienteSocket.getInputStream());
+                DataInputStream dataInputStream = new DataInputStream(clienteSocket.getInputStream());
 
-            // Recibir el nombre del archivo enviado por el cliente
-            String nombreArchivo = dataInputStream.readUTF();
-            System.out.println("Nombre del archivo a recibir: " + nombreArchivo);
+                // Recibir el nombre del archivo enviado por el cliente
+                String nombreArchivo = dataInputStream.readUTF();
+                System.out.println("Nombre del archivo a recibir: " + nombreArchivo);
 
-            //String directorioActual = System.getProperty("user.dir");
-            //System.out.println("Directorio actual: " + directorioActual);
+                //String directorioActual = System.getProperty("user.dir");
+                //System.out.println("Directorio actual: " + directorioActual);
 
-            // Crear el flujo de salida para escribir los datos en el archivo
-            String rutaArchivo = "archivos/" + nombreArchivo;
-            FileOutputStream fileOutputStream = new FileOutputStream(rutaArchivo);
+                // Crear el flujo de salida para escribir los datos en el archivo
+                String rutaArchivo = "archivos/" + nombreArchivo;
+                FileOutputStream fileOutputStream = new FileOutputStream(rutaArchivo);
 
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = dataInputStream.read(buffer)) != -1) {
-                fileOutputStream.write(buffer, 0, bytesRead);
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = dataInputStream.read(buffer)) != -1) {
+                    fileOutputStream.write(buffer, 0, bytesRead);
+                }
+
+                System.out.println("Archivo recibido y guardado correctamente.");
+
+                fileOutputStream.close();
+                dataInputStream.close();
+                clienteSocket.close();
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+                System.exit(1);
             }
-
-            System.out.println("Archivo recibido y guardado correctamente.");
-
-            fileOutputStream.close();
-            dataInputStream.close();
-            clienteSocket.close();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            System.exit(1);
         }
     }
 }

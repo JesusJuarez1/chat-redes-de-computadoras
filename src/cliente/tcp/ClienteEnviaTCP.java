@@ -42,19 +42,46 @@ public class ClienteEnviaTCP extends Thread{
 
             byte[] buffer = new byte[1024];
             int bytesRead;
+            long startTime = System.currentTimeMillis(); // Tiempo de inicio de la transmisión
+
+            long totalBytesSent = 0;
+            long fileSize = archivo.length(); // Tamaño del archivo en bytes
+
             while ((bytesRead = fis.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
-                System.out.println("Bytes enviados: " + bytesRead);
+                totalBytesSent += bytesRead;
+
+                // Calcular tiempo transcurrido
+                long currentTime = System.currentTimeMillis();
+                long elapsedTime = currentTime - startTime;
+
+                // Calcular tasa de transferencia
+                double transferRate = (totalBytesSent * 8) / (elapsedTime / 1000.0); // Tasa de transferencia en bps
+
+                // Calcular tiempo restante
+                double remainingTime = (fileSize - totalBytesSent) / transferRate;
+
+                System.out.println("Bytes enviados: " + totalBytesSent);
+                System.out.println("Tasa de transferencia: " + transferRate + " bps");
+                System.out.println("Tiempo transcurrido: " + elapsedTime + " ms");
+                System.out.println("Tiempo restante: " + remainingTime + " s");
             }
+
+            long endTime = System.currentTimeMillis(); // Tiempo de finalización de la transmisión
+            long totalTime = endTime - startTime; // Tiempo total de transmisión en milisegundos
+
+            double transferRate = (fileSize * 8) / (totalTime / 1000.0); // Tasa de transferencia en bps
+
+            System.out.println("Transmisión completada.");
+            System.out.println("Tasa de transferencia: " + transferRate + " bps");
+            System.out.println("Tiempo total de transmisión: " + totalTime + " ms");
             fis.close();
-            System.out.println("Salio");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
         } finally {
             try {
                 socket.close();
-                System.out.println("SalioX22");
             } catch (IOException e) {
                 System.err.println(e.getMessage());
             }
