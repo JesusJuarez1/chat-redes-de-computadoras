@@ -36,46 +36,42 @@ public class ClienteEnviaTCP extends Thread{
         // Código para enviar archivo
         try {
             FileInputStream fis = new FileInputStream(archivo);
-
-            // Enviar el nombre del archivo al servidor
             out.writeUTF(archivo.getName());
 
             byte[] buffer = new byte[1024];
             int bytesRead;
-            long startTime = System.currentTimeMillis(); // Tiempo de inicio de la transmisión
-
-            long totalBytesSent = 0;
-            long fileSize = archivo.length(); // Tamaño del archivo en bytes
-
+            long bytesEnviados = 0;
+            long bytesEnviadosPorSegundo = 0;
+            long startTime = System.nanoTime();
+            long tiempoActualizacion = startTime;
+            double tiempoTotal = 0.0;
             while ((bytesRead = fis.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
-                totalBytesSent += bytesRead;
+                bytesEnviados += bytesRead;
+                bytesEnviadosPorSegundo += bytesRead;
 
-                // Calcular tiempo transcurrido
-                long currentTime = System.currentTimeMillis();
-                long elapsedTime = currentTime - startTime;
+                long tiempoActual = System.nanoTime();
+                double tiempoTranscurrido = (tiempoActual - startTime)/1000000000.0;
+                double intervaloTiempo = (tiempoActual-tiempoActualizacion)/1000000000.0;
 
-                // Calcular tasa de transferencia
-                double transferRate = (totalBytesSent * 8) / (elapsedTime / 1000.0); // Tasa de transferencia en bps
+                if (intervaloTiempo >= 1.0) {
+                    double tasaTransferencia = bytesEnviadosPorSegundo*8;
+                    double tiempoEstimado = ((double)(archivo.length()-bytesEnviados))/bytesEnviadosPorSegundo;
 
-                // Calcular tiempo restante
-                double remainingTime = (fileSize - totalBytesSent) / transferRate;
-
-                System.out.println("Bytes enviados: " + totalBytesSent);
-                System.out.println("Tasa de transferencia: " + transferRate + " bps");
-                System.out.println("Tiempo transcurrido: " + elapsedTime + " ms");
-                System.out.println("Tiempo restante: " + remainingTime + " s");
+                    System.out.println("Tasa de transferencia: " + tasaTransferencia + " b/s");
+                    System.out.println("Tasa de transferencia: " + bytesEnviadosPorSegundo/1024 + " KB/s");
+                    System.out.println("Tiempo transcurrido: " + tiempoTranscurrido + " segundos");
+                    System.out.println("Tiempo restante estimado: " + tiempoEstimado + " segundos");
+                    System.out.println("----------------------------------------------");
+                    bytesEnviadosPorSegundo = 0;
+                    tiempoActualizacion = tiempoActual;
+                }
             }
+            System.out.println(archivo.length());
+            System.out.println(bytesEnviados/1024);
 
-            long endTime = System.currentTimeMillis(); // Tiempo de finalización de la transmisión
-            long totalTime = endTime - startTime; // Tiempo total de transmisión en milisegundos
-
-            double transferRate = (fileSize * 8) / (totalTime / 1000.0); // Tasa de transferencia en bps
-
-            System.out.println("Transmisión completada.");
-            System.out.println("Tasa de transferencia: " + transferRate + " bps");
-            System.out.println("Tiempo total de transmisión: " + totalTime + " ms");
             fis.close();
+            System.out.println("Archivo enviado correctamente.");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);

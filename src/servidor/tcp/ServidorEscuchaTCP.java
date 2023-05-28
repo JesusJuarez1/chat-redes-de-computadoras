@@ -23,7 +23,7 @@ public class ServidorEscuchaTCP extends Thread {
         while (true) {
             // Declaramos un bloque try y catch para controlar la ejecución del subprograma
             try {
-                System.out.println("Servidor escuchando en el puerto " + PUERTO_SERVER + "...");
+                System.out.println("\nServidor escuchando en el puerto " + PUERTO_SERVER + "...");
                 Socket clienteSocket = serverSocket.accept();
                 System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
 
