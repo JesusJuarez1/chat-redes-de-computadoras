@@ -42,8 +42,29 @@ public class ServidorEscuchaTCP extends Thread {
 
                 byte[] buffer = new byte[1024];
                 int bytesRead;
+                long bytesRecibidosPorSegundo = 0;
+                long startTime = System.nanoTime();
+                long tiempoActualizacion = startTime;
+
                 while ((bytesRead = dataInputStream.read(buffer)) != -1) {
                     fileOutputStream.write(buffer, 0, bytesRead);
+                    bytesRecibidosPorSegundo += bytesRead;
+
+                    long tiempoActual = System.nanoTime();
+                    double tiempoTranscurrido = (tiempoActual - startTime)/1000000000.0;
+                    double intervaloTiempo = (tiempoActual - tiempoActualizacion)/1000000000.0;
+
+                    if (intervaloTiempo >= 1.0) {
+                        long tasaTransferenciaBps = bytesRecibidosPorSegundo*8;
+
+                        System.out.println("Tasa de recibimiento: " + tasaTransferenciaBps + " bps");
+                        System.out.println("Tasa de recibimiento: " + (bytesRecibidosPorSegundo/1024) + " Kps");
+                        System.out.println("Tiempo transcurrido: " + tiempoTranscurrido + " segundos");
+                        System.out.println("----------------------------------------------");
+
+                        bytesRecibidosPorSegundo = 0;
+                        tiempoActualizacion = tiempoActual;
+                    }
                 }
 
                 System.out.println("Archivo recibido y guardado correctamente.");

@@ -67,8 +67,6 @@ public class ClienteEnviaTCP extends Thread{
                     tiempoActualizacion = tiempoActual;
                 }
             }
-            System.out.println(archivo.length());
-            System.out.println(bytesEnviados/1024);
 
             fis.close();
             System.out.println("Archivo enviado correctamente.");
