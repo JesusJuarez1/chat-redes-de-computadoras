@@ -7,6 +7,7 @@ El programa tiene que permitir la funcionalidad de un chat. El cual debe incluir
 2.- Enviar archivos a petición del usuario. Estos archivos pueden ser de cualquier tipo y de cualquier tamaño.
 
 3.- Permita realizar una comunicación de audio y video entre usuarios: videollamada. Se sugiere que los datos deben estar comprimidos para mejorar su fluidez.
+    Para esto se requiere tener instalado Java Media Framework (JMF)
 
 4.- En el caso de que se envíen archivos, el programa debe calcular la tasa de transferencia (bps) a la que se está haciendo el envío, así como el tiempo (latencia) que se ocupa para la transmisión (tiempo total), el tiempo restante y el tiempo transcurrido.
 

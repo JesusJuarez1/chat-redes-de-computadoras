@@ -26,10 +26,6 @@ public class ClienteEnviaUDP extends Thread{
         byte[] mensaje_bytes;
         String mensaje="";
         mensaje_bytes=mensaje.getBytes();
-        
-        String cadenaMensaje="";
-
-        byte[] RecogerServidor_bytes;
 
         try {
             address=InetAddress.getByName(SERVER);

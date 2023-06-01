@@ -1,7 +1,6 @@
 package cliente.udp;
 
 import java.net.*;
-import java.io.*;
  
 //declaramos la clase udp
 public class ClienteUDP{

@@ -1,10 +1,9 @@
 package chat;
 
 import cliente.tcp.ClienteTCP;
+import cliente.udp.ClienteLlamadaUDP;
 import cliente.udp.ClienteUDP;
-
-import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
+import video.Video;
 import java.io.File;
 import java.util.Scanner;
 import java.net.InetAddress;
@@ -36,9 +35,7 @@ public class Chat {
                     enviarArchivos();
                     break;
                 case 3:
-                    // Opción de realizar videollamada
-                    System.out.println("Iniciando videollamada...");
-                    // Lógica para iniciar la videollamada
+                    realizarVideollamada();
                     break;
                 case 4:
                     // Opción de salir
@@ -54,6 +51,35 @@ public class Chat {
         scanner.close();
     }
 
+
+    /**
+     * Tiene la funcionalidad necesaria para realizar una videollamada
+     */
+    private void realizarVideollamada() {
+        Video video = new Video();
+        String servidor = obtenerDireccionIPDestinatario();
+        Scanner scanner = new Scanner(System.in);
+
+        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP(servidor, 20);
+        try {
+            cliente.inicia();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+
+        // Esperar a que los hilos del cliente finalicen
+        while (cliente.isActivo()) {
+            try {
+                Thread.sleep(100); // Esperar 100 milisegundos antes de verificar nuevamente
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Tiene la funcionalidad necesaria para saber a quien enviar los datos y se los pasa a ClienteTCP
+     */
     private void enviarArchivos() {
         String servidor = obtenerDireccionIPDestinatario();
         Scanner scanner = new Scanner(System.in);
@@ -84,7 +110,7 @@ public class Chat {
     }
 
     /**
-     * Llama las clases necesarias para enviar y recibir mensajes
+     * Llama las clases necesarias para enviar y recibir mensajes ClienteUDP
      */
     private void mensajeriaTexto() {
         String servidor = obtenerDireccionIPDestinatario();
