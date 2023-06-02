@@ -1,5 +1,7 @@
 package cliente.udp;
 
+import cliente.udp.video.Video;
+
 import java.net.*;
 import java.io.*;
 
@@ -7,35 +9,17 @@ import java.io.*;
 public class ClienteLlamadaUDP{
     protected final int PUERTO_SERVER;
     protected final String SERVER;
-    protected boolean activo;
 
     public ClienteLlamadaUDP(String servidor, int puertoS){
         PUERTO_SERVER=puertoS;
         SERVER=servidor;
-        activo = false;
     }
 
     public void inicia()throws Exception{
         DatagramSocket socket=new DatagramSocket();
-
-        ClienteEscuchaLlamadaUDP clienteEnvLlUDP=new ClienteEscuchaLlamadaUDP(socket);
-        ClienteEnviaLlamadaUDP clienteEscLlUDP=new ClienteEnviaLlamadaUDP(socket, SERVER, PUERTO_SERVER);
-
-        clienteEnvLlUDP.start();
-        clienteEscLlUDP.start();
-
-        // Indicar que los hilos están activos
-        activo = true;
-
-        // Esperar a que los hilos finalicen
-        clienteEnvLlUDP.join();
-        clienteEscLlUDP.join();
-
-        // Indicar que los hilos han finalizado
-        activo = false;
-    }
-
-    public boolean isActivo() {
-        return activo;
+        Video videoLlamada = new Video();
+        videoLlamada.setServer(SERVER);
+        videoLlamada.setPuertoServer(PUERTO_SERVER);
+        videoLlamada.launch();
     }
 }

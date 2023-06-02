@@ -3,7 +3,7 @@ package chat;
 import cliente.tcp.ClienteTCP;
 import cliente.udp.ClienteLlamadaUDP;
 import cliente.udp.ClienteUDP;
-import video.Video;
+import cliente.udp.video.Video;
 import java.io.File;
 import java.util.Scanner;
 import java.net.InetAddress;
@@ -56,24 +56,13 @@ public class Chat {
      * Tiene la funcionalidad necesaria para realizar una videollamada
      */
     private void realizarVideollamada() {
-        Video video = new Video();
         String servidor = obtenerDireccionIPDestinatario();
-        Scanner scanner = new Scanner(System.in);
 
-        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP(servidor, 20);
+        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP(servidor, 66666);
         try {
             cliente.inicia();
         } catch (Exception e) {
             System.err.println(e.getMessage());
-        }
-
-        // Esperar a que los hilos del cliente finalicen
-        while (cliente.isActivo()) {
-            try {
-                Thread.sleep(100); // Esperar 100 milisegundos antes de verificar nuevamente
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         }
     }
 
