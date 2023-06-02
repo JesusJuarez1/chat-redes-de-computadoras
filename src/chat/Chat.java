@@ -3,7 +3,9 @@ package chat;
 import cliente.tcp.ClienteTCP;
 import cliente.udp.ClienteLlamadaUDP;
 import cliente.udp.ClienteUDP;
-import cliente.udp.video.Video;
+import javafx.application.Application;
+import javafx.stage.Stage;
+
 import java.io.File;
 import java.util.Scanner;
 import java.net.InetAddress;
@@ -57,12 +59,13 @@ public class Chat {
      */
     private void realizarVideollamada() {
         String servidor = obtenerDireccionIPDestinatario();
-
-        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP(servidor, 66666);
+        Application.launch(ClienteLlamadaUDP.class);
+        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP();
+        cliente.setSERVER(servidor);
+        cliente.setPUERTO_SERVER(5000);
         try {
-            cliente.inicia();
+            cliente.launch();
         } catch (Exception e) {
-            System.err.println(e.getMessage());
         }
     }
 
