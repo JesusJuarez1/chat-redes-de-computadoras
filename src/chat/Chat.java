@@ -4,7 +4,6 @@ import cliente.tcp.ClienteTCP;
 import cliente.udp.ClienteLlamadaUDP;
 import cliente.udp.ClienteUDP;
 import javafx.application.Application;
-import javafx.stage.Stage;
 
 import java.io.File;
 import java.util.Scanner;
@@ -59,13 +58,20 @@ public class Chat {
      */
     private void realizarVideollamada() {
         String servidor = obtenerDireccionIPDestinatario();
-        Application.launch(ClienteLlamadaUDP.class);
-        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP();
-        cliente.setSERVER(servidor);
-        cliente.setPUERTO_SERVER(5000);
+        ClienteLlamadaUDP cliente = new ClienteLlamadaUDP(servidor);
         try {
-            cliente.launch();
+            cliente.inicia();
         } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Esperar a que los hilos del cliente finalicen
+        while (cliente.isActivo()) {
+            try {
+                Thread.sleep(100); // Esperar 100 milisegundos antes de verificar nuevamente
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 

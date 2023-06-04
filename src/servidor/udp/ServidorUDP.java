@@ -10,7 +10,6 @@ public class ServidorUDP{
     }
     public void inicia()throws Exception{
         ServidorEscuchaUDP servidorUDP=new ServidorEscuchaUDP(PUERTO_SERVER);
-        
         servidorUDP.start();
     }
 }

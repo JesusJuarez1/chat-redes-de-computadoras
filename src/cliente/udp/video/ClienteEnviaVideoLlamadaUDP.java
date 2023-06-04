@@ -1,345 +1,208 @@
 package cliente.udp.video;
 
-import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
-import org.opencv.videoio.VideoCapture;
+import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.videoio.VideoCapture;
 import org.opencv.imgproc.Imgproc;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.*;
-
-import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.StackPane;
-import javafx.stage.Stage;
 
 import javax.sound.sampled.*;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.net.*;
+import java.nio.ByteBuffer;
 
-public class ClienteEnviaVideoLlamadaUDP extends Application {
+public class ClienteEnviaVideoLlamadaUDP extends Thread {
+    private static final int FRAME_WIDTH = 640;
+    private static final int FRAME_HEIGHT = 480;
+    private static final int FPS = 30;
+    private static final int AUDIO_BUFFER_SIZE = 4096;
+    private static final int PACKET_SIZE = 65507;
+    private static final int VIDEO_PORT = 50000;
+    private static final int AUDIO_PORT = 50001;
+    private volatile boolean isRunning;
 
-    private ImageView imageView;
-    private VideoCapture videoCapture;
-    private TargetDataLine audioLine;
-    private boolean capturing;
-    private DatagramSocket socket;
+    private DatagramSocket videoSocket;
+    private DatagramSocket audioSocket;
     private InetAddress serverAddress;
-    private int serverPort;
 
-    @Override
-    public void start(Stage primaryStage) {
-        // Cargar la biblioteca OpenCV
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+    private VideoCapture videoCapture;
+    private AudioFormat audioFormat;
+    private TargetDataLine targetDataLine;
 
-        // Crear el componente ImageView para mostrar la vista previa del cliente.udp.video
-        imageView = new ImageView();
+    private JFrame frame;
+    private JLabel videoLabel;
+    private JButton stopButton;
 
-        // Crear el contenedor de la interfaz de usuario
-        StackPane root = new StackPane();
-        root.getChildren().add(imageView);
-
-        // Crear la escena
-        Scene scene = new Scene(root, 640, 480);
-
-        // Crear el botón y ajustar su tamaño
-        Button stopButton = new Button("Terminar Videollamada");
-        stopButton.setPrefSize(200, 40);
-
-        // Ubicar el botón en la esquina inferior derecha
-        StackPane.setAlignment(stopButton, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(stopButton, new Insets(10));
-        stopButton.setOnAction(e -> stopVideoCall());
-        root.getChildren().add(stopButton);
-
-        primaryStage.setTitle("Video and Audio Capture");
-        primaryStage.setScene(scene);
-        primaryStage.show();
-
-
-        // Iniciar la captura de cliente.udp.video y audio
-        videoCapture = new VideoCapture(0);
-        audioLine = getAudioLine();
-        capturing = true;
-
-        // Crear el socket UDP
+    public ClienteEnviaVideoLlamadaUDP(String server, DatagramSocket videoSocket, DatagramSocket audioSocket) {
+        this.videoSocket = videoSocket;
+        this.audioSocket = audioSocket;
         try {
-            socket = new DatagramSocket();
-        } catch (IOException e) {
-            e.printStackTrace();
+            serverAddress = InetAddress.getByName(server);
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
         }
 
-        new Thread(this::captureVideo).start();
-        new Thread(this::captureAudio).start();
-        new Thread(this::receiveAndDisplayVideoAudio).start();
-    }
-
-    private void stopVideoCall() {
-        capturing = false; // Detener la captura de video y audio
-
-        if (audioLine != null) {
-            audioLine.stop();
-            audioLine.close();
+        videoCapture = new VideoCapture(0);
+        audioFormat = new AudioFormat(8000.0f, 16, 1, true, true);
+        DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
+        try {
+            targetDataLine = (TargetDataLine) AudioSystem.getLine(dataLineInfo);
+        } catch (LineUnavailableException e) {
+            throw new RuntimeException(e);
         }
 
-        if (socket != null) {
-            socket.close();
-        }
+        frame = new JFrame("Cliente");
+        videoLabel = new JLabel();
+        stopButton = new JButton("Detener envío");
 
-        // Cerrar la aplicación
-        Platform.exit();
+        stopButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                stopSending();
+            }
+        });
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BorderLayout());
+        panel.add(videoLabel, BorderLayout.CENTER);
+        panel.add(stopButton, BorderLayout.SOUTH);
+
+        frame.getContentPane().add(panel);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(FRAME_WIDTH, FRAME_HEIGHT);
+        frame.setVisible(true);
     }
 
-    public void setServer(String server) throws UnknownHostException {
-        this.serverAddress = InetAddress.getByName(server);
+    private void displayVideo() {
+        SwingWorker<Void, BufferedImage> worker = new SwingWorker<Void, BufferedImage>() {
+            @Override
+            protected Void doInBackground() {
+                try {
+                    while (isRunning) {
+                        // Capture video frame
+                        Mat frame = new Mat();
+                        videoCapture.read(frame);
+                        Imgproc.resize(frame, frame, new Size(FRAME_WIDTH, FRAME_HEIGHT));
+                        BufferedImage image = matToBufferedImage(frame);
+
+                        // Publish the image for display
+                        publish(image);
+
+                        // Delay between frames
+                        Thread.sleep(1000 / FPS);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Exception: " + e.getMessage());
+                    System.exit(1);
+                }
+                return null;
+            }
+
+            @Override
+            protected void process(java.util.List<BufferedImage> chunks) {
+                // Update the UI with the latest image
+                BufferedImage image = chunks.get(chunks.size() - 1);
+                ImageIcon icon = new ImageIcon(image);
+                videoLabel.setIcon(icon);
+                videoLabel.repaint();
+            }
+        };
+
+        worker.execute();
     }
 
-    public void setPuertoServer(int puertoServer) {
-        this.serverPort = puertoServer;
-    }
+    public void run() {
+        try {
+            byte[] audioBuffer = new byte[AUDIO_BUFFER_SIZE];
 
-    private void captureVideo() {
-        videoCapture.open(0); // Abrir la cámara con el índice 0 (cámara predeterminada)
-
-        if (videoCapture.isOpened()) {
-            while (capturing) {
+            // Start displaying the video
+            displayVideo();
+            isRunning = true;
+            while (isRunning) {
+                // Capture video frame
                 Mat frame = new Mat();
                 videoCapture.read(frame);
+                BufferedImage image = matToBufferedImage(frame);
 
-                if (!frame.empty()) {
-                    // Realizar cualquier procesamiento de imagen necesario aquí
-                    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2RGB);
+                // Display video frame
+                ImageIcon icon = new ImageIcon(image);
+                videoLabel.setIcon(icon);
+                videoLabel.repaint();
 
-                    // Convertir la imagen de Mat a Image
-                    Image image = matToImage(frame);
+                // Convert video frame to compressed bytes
+                MatOfByte matOfByte = new MatOfByte();
+                Imgcodecs.imencode(".jpg", frame, matOfByte);
+                byte[] compressedVideo = matOfByte.toArray();
 
-                    // Mostrar la imagen en el componente ImageView
-                    imageView.setImage(image);
+                // Send video frame
+                sendData(compressedVideo, VIDEO_PORT);
 
-                    // Obtener los datos de imagen en un arreglo de bytes
-                    byte[] imageData = matToByteArray(frame);
+                // Capture audio frame
+                targetDataLine.open(audioFormat);
+                targetDataLine.start();
 
-                    // Comprimir los datos de imagen
-                    byte[] compressedImageData = compressData(imageData);
-
-                    // Enviar los datos comprimidos por UDP
-                    new Thread(() -> {
-                        sendCompressedData(compressedImageData);
-                    }).start();
-
-                }
+                // Send audio frame
+                sendData(audioBuffer, AUDIO_PORT);
             }
-        }
-
-        videoCapture.release();
-    }
-
-    private Image matToImage(Mat frame) {
-        Mat convertedFrame = new Mat();
-        Imgproc.cvtColor(frame, convertedFrame, Imgproc.COLOR_BGR2RGB);
-
-        MatOfByte buffer = new MatOfByte();
-        Imgcodecs.imencode(".png", convertedFrame, buffer);
-        return new Image(new ByteArrayInputStream(buffer.toArray()));
-    }
-
-    private byte[] matToByteArray(Mat frame) {
-        MatOfByte buffer = new MatOfByte();
-        Imgcodecs.imencode(".png", frame, buffer);
-        return buffer.toArray();
-    }
-
-    private TargetDataLine getAudioLine() {
-        try {
-            AudioFormat format = new AudioFormat(44100, 16, 2, true, true);
-            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
-            TargetDataLine line = (TargetDataLine) AudioSystem.getLine(info);
-            line.open(format);
-            line.start();
-            return line;
-        } catch (LineUnavailableException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    private void captureAudio() {
-        byte[] buffer = new byte[4096];
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        try {
-            while (capturing) {
-                int count = audioLine.read(buffer, 0, buffer.length);
-                if (count > 0) {
-                    outputStream.write(buffer, 0, count);
-                }
-            }
+            // Cleanup resources
+            videoCapture.release();
+            targetDataLine.stop();
+            targetDataLine.close();
+            videoSocket.close();
+            audioSocket.close();
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                outputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // Obtener los datos de audio capturados en un arreglo de bytes
-        byte[] audioData = outputStream.toByteArray();
-
-        // Comprimir los datos de audio
-        byte[] compressedAudioData = compressData(audioData);
-
-        // Enviar los datos comprimidos por UDP
-        sendCompressedData(compressedAudioData);
-    }
-
-    private byte[] compressData(byte[] data) {
-        // Realizar la compresión de datos aquí
-        // Reemplaza este código con el algoritmo de compresión de tu elección
-        // Retorna los datos comprimidos en un arreglo de bytes
-        return data;
-    }
-
-    private void sendCompressedData(byte[] compressedData) {
-        int maxFragmentSize = 1400; // Tamaño máximo para cada fragmento
-        int offset = 0;
-        int retryCount = 0;
-        boolean sentSuccessfully = false;
-
-        while (!sentSuccessfully && offset < compressedData.length) {
-            int fragmentSize = Math.min(maxFragmentSize, compressedData.length - offset);
-            byte[] fragment = new byte[fragmentSize];
-            System.arraycopy(compressedData, offset, fragment, 0, fragmentSize);
-            Thread sendThread = null;
-
-            try {
-                DatagramPacket packet = new DatagramPacket(fragment, fragment.length, serverAddress, serverPort);
-                sendThread = new Thread(() -> {
-                    try {
-                        socket.send(packet);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-                sendThread.start();
-
-                // Esperar 2 segundos
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    // El hilo fue interrumpido, se detiene el envío
-                    sendThread.interrupt();
-                    break;
-                }
-
-                // Verificar si el hilo de envío ha terminado
-                if (sendThread.isAlive()) {
-                    // El tiempo de espera de 2 segundos ha transcurrido, se interrumpe el hilo de envío
-                    sendThread.interrupt();
-                    retryCount++;
-                    System.out.println("Reintentando envío de datos (" + retryCount + ")");
-                } else {
-                    // El envío se completó exitosamente
-                    sentSuccessfully = true;
-                }
-            } catch (Exception e){
-
-            }
-
-            offset += fragmentSize;
-        }
-
-        if (!sentSuccessfully) {
-            System.out.println("No se pudo enviar los datos después de " + retryCount + " intentos.");
+            System.err.println("Exception: " + e.getMessage());
+            System.exit(1);
         }
     }
 
+    private void stopSending() {
+        isRunning = false;
+        frame.dispose();
+    }
 
-    private void receiveAndDisplayVideoAudio() {
-        try {
-            byte[] buffer = new byte[65536];
+    private void sendData(byte[] data, int port) throws Exception {
+        int totalBytes = data.length;
+        int sentBytes = 0;
+        int packetSize = 1400;
 
-            while (capturing) {
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                socket.receive(packet);
+        // Convertir el tamaño total en un arreglo de bytes
+        byte[] totalBytesData = ByteBuffer.allocate(4).putInt(totalBytes).array();
 
-                byte[] receivedData = packet.getData();
-                int receivedDataLength = packet.getLength();
+        // Enviar el tamaño total primero
+        DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
+        videoSocket.send(sizePacket);
 
-                // Descomprimir los datos de video y audio recibidos
-                byte[] decompressedVideoData = decompressData(receivedData, receivedDataLength);
-                byte[] decompressedAudioData = decompressData(receivedData, receivedDataLength);
+        while (sentBytes < totalBytes) {
+            int remainingBytes = totalBytes - sentBytes;
+            int packetBytes = Math.min(packetSize, remainingBytes);
 
-                // Mostrar el video y reproducir el audio
-                displayVideo(decompressedVideoData);
-                playAudio(decompressedAudioData);
-            }
-        } catch (SocketException e){
+            DatagramPacket packet;
+            packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
 
-        } catch (IOException e) {
-            e.printStackTrace();
+            videoSocket.send(packet);
+            sentBytes += packetBytes;
         }
     }
 
-    private byte[] decompressData(byte[] data, int length) {
-        // Realizar la descompresión de datos aquí
-        // Reemplaza este código con el algoritmo de descompresión de tu elección
-        // Retorna los datos descomprimidos en un arreglo de bytes
-        return data;
-    }
-
-    private void displayVideo(byte[] videoData) {
-        // Convertir los datos de video a una matriz OpenCV
-        Mat frame = byteArrayToMat(videoData);
-
-        // Realizar cualquier procesamiento de imagen necesario aquí
-        Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2RGB);
-
-        // Convertir la imagen de Mat a Image
-        Image image = matToImage(frame);
-
-        // Mostrar la imagen en el componente ImageView
-        imageView.setImage(image);
-    }
-
-    private Mat byteArrayToMat(byte[] byteArray) {
-        MatOfByte matOfByte = new MatOfByte(byteArray);
-        return Imgcodecs.imdecode(matOfByte, Imgcodecs.IMREAD_UNCHANGED);
-    }
-
-    private void playAudio(byte[] audioData) {
-        try {
-            AudioFormat format = new AudioFormat(44100, 16, 2, true, true);
-            SourceDataLine line = AudioSystem.getSourceDataLine(format);
-            line.open(format);
-            line.start();
-            line.write(audioData, 0, audioData.length);
-            line.drain();
-            line.stop();
-            line.close();
-        } catch (LineUnavailableException e) {
-            e.printStackTrace();
+    private BufferedImage matToBufferedImage(Mat mat) {
+        int type = BufferedImage.TYPE_BYTE_GRAY;
+        if (mat.channels() > 1) {
+            type = BufferedImage.TYPE_3BYTE_BGR;
         }
-    }
+        int bufferSize = mat.channels() * mat.cols() * mat.rows();
+        byte[] buffer = new byte[bufferSize];
+        mat.get(0, 0, buffer);
 
-    @Override
-    public void stop() throws Exception {
-        capturing = false;
-        if (audioLine != null) {
-            audioLine.stop();
-            audioLine.close();
-        }
-        if (socket != null) {
-            socket.close();
-        }
-        super.stop();
+        BufferedImage image = new BufferedImage(mat.cols(), mat.rows(), type);
+        final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        System.arraycopy(buffer, 0, targetPixels, 0, buffer.length);
+
+        return image;
     }
 }

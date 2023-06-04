@@ -1,30 +1,41 @@
 package cliente.udp;
 
 import cliente.udp.video.ClienteEnviaVideoLlamadaUDP;
-import javafx.application.Application;
-import javafx.stage.Stage;
+import org.opencv.core.Core;
 
+import javax.sound.sampled.LineUnavailableException;
 import java.net.*;
 
 //declaramos la clase udp
-public class ClienteLlamadaUDP extends Application {
-    protected int PUERTO_SERVER;
+public class ClienteLlamadaUDP extends Thread{
     protected String SERVER;
+    protected boolean activo;
 
-    public void setPUERTO_SERVER(int puerto) {
-        PUERTO_SERVER = puerto;
+    public ClienteLlamadaUDP(String SERVER) {
+        this.SERVER = SERVER;
+        activo = false;
     }
 
-    public void setSERVER(String server) {
-        SERVER = server;
+    public void inicia() throws Exception{
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        DatagramSocket videoSocket = null;
+        DatagramSocket audioSocket = null;
+        try {
+            videoSocket = new DatagramSocket();
+            audioSocket = new DatagramSocket();
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+        ClienteEnviaVideoLlamadaUDP videoLlamada = null;
+        videoLlamada = new ClienteEnviaVideoLlamadaUDP(SERVER, videoSocket, audioSocket);
+        videoLlamada.start();
+
+        activo = true;
+
+        videoLlamada.join();
     }
 
-    @Override
-    public void start(Stage primaryStage) throws Exception {
-        DatagramSocket socket = new DatagramSocket();
-        ClienteEnviaVideoLlamadaUDP videoLlamada = new ClienteEnviaVideoLlamadaUDP();
-        videoLlamada.setServer(SERVER);
-        videoLlamada.setPuertoServer(PUERTO_SERVER);
-        videoLlamada.start(primaryStage);
+    public boolean isActivo() {
+        return activo;
     }
 }
