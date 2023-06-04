@@ -117,19 +117,12 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-            byte[] finalReceivedData = receivedData;
-            Thread video = new Thread(){
-                @Override
-                public void run(){
-                    Mat frame = decodeFrame(finalReceivedData);
-                    BufferedImage image = matToBufferedImage(frame);
-                    // Display video frame
-                    ImageIcon icon = new ImageIcon(image);
-                    videoLabel.setIcon(icon);
-                    videoLabel.repaint();
-                }
-            };
-            video.start();
+            Mat frame = decodeFrame(receivedData);
+            BufferedImage image = matToBufferedImage(frame);
+            // Display video frame
+            ImageIcon icon = new ImageIcon(image);
+            videoLabel.setIcon(icon);
+            videoLabel.repaint();
 
             // Receive audio frame
             int totalBytesAudio = receiveDataSize(audioSocket);
@@ -140,20 +133,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 throw new RuntimeException(e);
             }
             // Last packet received, play the audio
-            byte[] finalReceivedDataAudio = receivedDataAudio;
-            Thread audio = new Thread(){
-                @Override
-                public void run(){
-                    sourceDataLine.write(finalReceivedDataAudio, 0, finalReceivedDataAudio.length);
-                }
-            };
-            audio.start();
-
-            try {
-                video.join(70);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
         }
 
         // Cleanup resources
