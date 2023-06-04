@@ -141,14 +141,33 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 byte[] compressedVideo = matOfByte.toArray();
 
                 // Send video frame
-                sendData(compressedVideo, VIDEO_PORT);
+                Thread videoThread = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            sendData(compressedVideo, VIDEO_PORT);
+                        } catch (Exception e) {
+                            System.err.println("Exception: " + e.getMessage());
+                        }
+                    }
+                };
+                videoThread.start();
 
                 // Capture audio frame
                 targetDataLine.open(audioFormat);
                 targetDataLine.start();
 
-                // Send audio frame
-                sendData(audioBuffer, AUDIO_PORT);
+                Thread audioThread = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            sendData(audioBuffer, AUDIO_PORT);
+                        } catch (Exception e) {
+                            System.err.println("Exception: " + e.getMessage());
+                        }
+                    }
+                };
+                audioThread.start();
             }
             // Cleanup resources
             videoCapture.release();
@@ -215,29 +234,6 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             sentBytes += packetBytes;
         }
     }
-    /*private void sendData(byte[] data, int port) throws Exception {
-        int totalBytes = data.length;
-        int sentBytes = 0;
-        int packetSize = 1400;
-
-        // Convertir el tamaño total en un arreglo de bytes
-        byte[] totalBytesData = ByteBuffer.allocate(4).putInt(totalBytes).array();
-
-        // Enviar el tamaño total primero
-        DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
-        videoSocket.send(sizePacket);
-
-        while (sentBytes < totalBytes) {
-            int remainingBytes = totalBytes - sentBytes;
-            int packetBytes = Math.min(packetSize, remainingBytes);
-
-            DatagramPacket packet;
-            packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
-
-            videoSocket.send(packet);
-            sentBytes += packetBytes;
-        }
-    }*/
 
     private BufferedImage matToBufferedImage(Mat mat) {
         int type = BufferedImage.TYPE_BYTE_GRAY;

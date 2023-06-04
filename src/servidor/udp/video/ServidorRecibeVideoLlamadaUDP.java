@@ -108,31 +108,43 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     public void start() {
         isRunning = true;
         while (isRunning) {
-            // Receive video frame
-            int totalBytes = receiveDataSize(videoSocket);
-            byte[] receivedData = new byte[0];
-            try {
-                receivedData = receiveData(videoSocket,totalBytes);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            Mat frame = decodeFrame(receivedData);
-            BufferedImage image = matToBufferedImage(frame);
-            // Display video frame
-            ImageIcon icon = new ImageIcon(image);
-            videoLabel.setIcon(icon);
-            videoLabel.repaint();
+            Thread videoThread = new Thread() {
+                @Override
+                public void run() {
+                    // Receive video frame
+                    int totalBytes = receiveDataSize(videoSocket);
+                    byte[] receivedData = null;
+                    try {
+                        receivedData = receiveData(videoSocket,totalBytes);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    Mat frame = decodeFrame(receivedData);
+                    BufferedImage image = matToBufferedImage(frame);
+                    // Display video frame
+                    ImageIcon icon = new ImageIcon(image);
+                    videoLabel.setIcon(icon);
+                    videoLabel.repaint();
+                }
+            };
+            videoThread.start();
 
             // Receive audio frame
-            int totalBytesAudio = receiveDataSize(audioSocket);
-            byte[] receivedDataAudio = new byte[0];
-            try {
-                receivedDataAudio = receiveData(audioSocket,totalBytesAudio);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            // Last packet received, play the audio
-            sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+            Thread audioThread = new Thread() {
+                @Override
+                public void run() {
+                    int totalBytesAudio = receiveDataSize(audioSocket);
+                    byte[] receivedDataAudio = new byte[0];
+                    try {
+                        receivedDataAudio = receiveData(audioSocket, totalBytesAudio);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    // Last packet received, play the audio
+                    sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+                }
+            };
+            audioThread.start();
         }
 
         // Cleanup resources
