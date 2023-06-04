@@ -7,6 +7,8 @@ import org.opencv.imgcodecs.Imgcodecs;
 import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
@@ -16,8 +18,8 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 
 public class ServidorRecibeVideoLlamadaUDP extends Thread {
-    private static final int FRAME_WIDTH = 640;
-    private static final int FRAME_HEIGHT = 480;
+    private static final int FRAME_WIDTH = 1024;
+    private static final int FRAME_HEIGHT = 720;
     private static final int PACKET_SIZE = 65507;
     private static final int VIDEO_PORT = 50000;
     private static final int AUDIO_PORT = 50001;
@@ -31,6 +33,8 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private AudioFormat audioFormat;
     private SourceDataLine sourceDataLine;
     private boolean isRunning;
+    private String clienteIP = "";
+    private JButton stopButton;
 
     public ServidorRecibeVideoLlamadaUDP() {
         try {
@@ -42,10 +46,18 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
         frame = new JFrame("Servidor");
         videoLabel = new JLabel();
+        stopButton = new JButton("Detener envío");
+
+        stopButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                stopSending();
+            }
+        });
 
         JPanel panel = new JPanel();
         panel.setLayout(new BorderLayout());
         panel.add(videoLabel, BorderLayout.CENTER);
+        panel.add(stopButton, BorderLayout.SOUTH);
 
         frame.getContentPane().add(panel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -75,6 +87,11 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         }
     }
 
+    private void stopSending() {
+        isRunning = false;
+        frame.dispose();
+    }
+
     private byte[] receiveData(DatagramSocket socket, int totalBytes) throws Exception {
         int receivedBytes = 0;
         int packetSize = 1400;
@@ -86,6 +103,10 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
             byte[] buffer = new byte[packetBytes];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            if(clienteIP == ""){
+                // Obtener la dirección IP del cliente
+                clienteIP = packet.getAddress().getHostAddress();
+            }
             try {
                 socket.receive(packet);
             } catch (IOException e) {
@@ -167,4 +188,11 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         return image;
     }
 
+    public boolean isRunning() {
+        return isRunning;
+    }
+
+    public String getClienteIP(){
+        return clienteIP;
+    }
 }

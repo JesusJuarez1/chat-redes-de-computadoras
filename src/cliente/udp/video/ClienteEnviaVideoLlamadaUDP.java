@@ -205,4 +205,8 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
         return image;
     }
+
+    public boolean isRunning(){
+        return isRunning;
+    }
 }

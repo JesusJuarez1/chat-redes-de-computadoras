@@ -1,7 +1,8 @@
-package cliente.udp;
+package cliente.udp.video;
 
 import cliente.udp.video.ClienteEnviaVideoLlamadaUDP;
 import org.opencv.core.Core;
+import servidor.udp.video.ServidorRecibeVideoLlamadaUDP;
 
 import javax.sound.sampled.LineUnavailableException;
 import java.net.*;
@@ -30,9 +31,22 @@ public class ClienteLlamadaUDP extends Thread{
         videoLlamada = new ClienteEnviaVideoLlamadaUDP(SERVER, videoSocket, audioSocket);
         videoLlamada.start();
 
+        ServidorRecibeVideoLlamadaUDP servidor = new ServidorRecibeVideoLlamadaUDP();
+        servidor.start();
+
         activo = true;
 
-        videoLlamada.join();
+        while(videoLlamada.isRunning() || servidor.isRunning() ){
+
+        }
+        if(!videoLlamada.isRunning()){
+            servidor.interrupt();
+        }else{
+            videoLlamada.interrupt();
+        }
+
+
+        activo = false;
     }
 
     public boolean isActivo() {
