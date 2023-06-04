@@ -11,30 +11,7 @@ public class PruebaRecibeVideo {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         ServidorRecibeVideoLlamadaUDP servidor = new ServidorRecibeVideoLlamadaUDP();
         servidor.start();
-        while(servidor.isRunning()){
-            if(servidor.getClienteIP() != ""){
-                break;
-            }
-        }
-        DatagramSocket videoSocket = null;
-        DatagramSocket audioSocket = null;
-        try {
-            videoSocket = new DatagramSocket();
-            audioSocket = new DatagramSocket();
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
-        ClienteEnviaVideoLlamadaUDP videoLlamada = null;
-        videoLlamada = new ClienteEnviaVideoLlamadaUDP(servidor.getClienteIP(), videoSocket, audioSocket);
-        videoLlamada.start();
+        servidor.join();
 
-        while(videoLlamada.isRunning() || servidor.isRunning() ){
-
-        }
-        if(!videoLlamada.isRunning()){
-            servidor.interrupt();
-        }else{
-            videoLlamada.interrupt();
-        }
     }
 }

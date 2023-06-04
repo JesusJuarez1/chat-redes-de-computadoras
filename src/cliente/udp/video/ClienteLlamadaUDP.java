@@ -31,20 +31,9 @@ public class ClienteLlamadaUDP extends Thread{
         videoLlamada = new ClienteEnviaVideoLlamadaUDP(SERVER, videoSocket, audioSocket);
         videoLlamada.start();
 
-        ServidorRecibeVideoLlamadaUDP servidor = new ServidorRecibeVideoLlamadaUDP();
-        servidor.start();
-
         activo = true;
 
-        while(videoLlamada.isRunning() || servidor.isRunning() ){
-
-        }
-        if(!videoLlamada.isRunning()){
-            servidor.interrupt();
-        }else{
-            videoLlamada.interrupt();
-        }
-
+        videoLlamada.join();
 
         activo = false;
     }
