@@ -54,11 +54,10 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         frame.setVisible(true);
 
         audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, AUDIO_BUFFER_SIZE, false);
-        DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
+        SourceDataLine.Info sourceDataLineInfo = new SourceDataLine.Info(SourceDataLine.class, audioFormat);
         try {
-            sourceDataLine = (SourceDataLine) AudioSystem.getLine(dataLineInfo);
-            sourceDataLine.open(audioFormat);
-            sourceDataLine.start();
+            sourceDataLine = (SourceDataLine) AudioSystem.getLine(sourceDataLineInfo);
+            sourceDataLine.open();
         } catch (LineUnavailableException e) {
             throw new RuntimeException(e);
         }
