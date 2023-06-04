@@ -195,10 +195,47 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
         // Enviar el tamaño total primero
         DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
-        try {
-            videoSocket.send(sizePacket);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        boolean isPacketSizeReceived = false;
+        while (!isPacketSizeReceived) {
+            // Enviar el paquete
+            try {
+                videoSocket.send(sizePacket);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            byte[] confirmationData = new byte[1];
+            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
+            Thread hilo = new Thread(){
+                @Override
+                public void run(){
+                    try {
+                        videoSocket.receive(confirmationPacket);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+            hilo.start();
+            // Esperar la confirmación de recepción durante un tiempo límite
+            try {
+                hilo.join(TIMEOUT);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            // Verificar si se recibió la confirmación del paquete
+            if(confirmationPacket.getAddress() == null){
+                hilo.interrupt();
+            }else{
+                if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
+                    isPacketSizeReceived = true;
+                }
+            }
+
+            if (!isPacketSizeReceived) {
+                // El paquete se perdió, imprimir un mensaje y reintentar el envío
+                System.err.println("Packet lost, retransmitting...");
+            }
         }
 
         while (sentBytes < totalBytes) {
