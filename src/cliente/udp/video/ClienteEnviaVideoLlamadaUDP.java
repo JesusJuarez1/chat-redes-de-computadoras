@@ -136,9 +136,8 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         try {
             byte[] audioBuffer = new byte[AUDIO_BUFFER_SIZE];
             targetDataLine.start();
-            sourceDataLine.start();
-            // Start displaying the video
 
+            // Start displaying the video
             displayVideo();
             isRunning = true;
             while (isRunning) {
@@ -162,15 +161,6 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
                 // Capturar audio frame
                 int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
-
-                // Reproducir audio capturado
-                sourceDataLine.write(audioBuffer, 0, bytesRead);
-
-                if (sourceDataLine.isActive()) {
-                    System.out.println("Audio en reproducción");
-                } else {
-                    System.out.println("No se está reproduciendo audio");
-                }
 
                 // Send audio buffer
                 if (bytesRead > 0) {
@@ -226,23 +216,31 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                     throw new RuntimeException(e);
                 }
 
-                // Iniciar temporizador
-                long startTime = System.currentTimeMillis();
-
-                // Esperar la confirmación de recepción durante un tiempo límite
-                while (System.currentTimeMillis() - startTime < TIMEOUT) {
-                    byte[] confirmationData = new byte[1];
-                    DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
-                    try {
-                        videoSocket.receive(confirmationPacket);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                byte[] confirmationData = new byte[1];
+                DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
+                Thread hilo = new Thread(){
+                    @Override
+                    public void run(){
+                        try {
+                            videoSocket.receive(confirmationPacket);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
-
-                    // Verificar si se recibió la confirmación del paquete
+                };
+                hilo.start();
+                // Esperar la confirmación de recepción durante un tiempo límite
+                try {
+                    hilo.join(TIMEOUT);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                // Verificar si se recibió la confirmación del paquete
+                if(confirmationPacket.getAddress() == null){
+                    hilo.interrupt();
+                }else{
                     if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
                         isPacketReceived = true;
-                        break;
                     }
                 }
 
