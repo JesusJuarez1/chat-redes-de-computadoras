@@ -15,6 +15,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -133,17 +134,10 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
     public void run() {
         try {
-            byte[] audioBuffer = null;
+            byte[] audioBuffer = new byte[AUDIO_BUFFER_SIZE];
             targetDataLine.start();
             sourceDataLine.start();
             // Start displaying the video
-
-            Thread hilo = new Thread(){
-                @Override
-                public void run(){
-                    AudioInputStream audio = new AudioInputStream(targetDataLine);
-                }
-            };
 
             displayVideo();
             isRunning = true;
@@ -192,7 +186,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             audioSocket.close();
         } catch (Exception e) {
             System.err.println("Exception: " + e.getMessage());
-            System.exit(1);
+            throw new RuntimeException(e);
         }
     }
 
@@ -201,7 +195,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         frame.dispose();
     }
 
-    private void sendData(byte[] data, int port) throws Exception {
+    private void sendData(byte[] data, int port) {
         int totalBytes = data.length;
         int sentBytes = 0;
         int packetSize = 1400;
@@ -211,7 +205,11 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
         // Enviar el tamaño total primero
         DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
-        videoSocket.send(sizePacket);
+        try {
+            videoSocket.send(sizePacket);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         while (sentBytes < totalBytes) {
             int remainingBytes = totalBytes - sentBytes;
@@ -222,7 +220,11 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
             while (!isPacketReceived) {
                 // Enviar el paquete
-                videoSocket.send(packet);
+                try {
+                    videoSocket.send(packet);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
 
                 // Iniciar temporizador
                 long startTime = System.currentTimeMillis();
@@ -231,7 +233,11 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 while (System.currentTimeMillis() - startTime < TIMEOUT) {
                     byte[] confirmationData = new byte[1];
                     DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
-                    videoSocket.receive(confirmationPacket);
+                    try {
+                        videoSocket.receive(confirmationPacket);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
 
                     // Verificar si se recibió la confirmación del paquete
                     if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
