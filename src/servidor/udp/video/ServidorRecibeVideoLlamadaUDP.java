@@ -16,6 +16,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 1024;
@@ -96,6 +99,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         int receivedBytes = 0;
         int packetSize = 1400;
         byte[] receivedData = new byte[totalBytes];
+        Map<Integer, byte[]> videoFramePackets = new HashMap<>();;
 
         while (receivedBytes < totalBytes) {
             int remainingBytes = totalBytes - receivedBytes;
@@ -103,7 +107,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
             byte[] buffer = new byte[packetBytes];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            if(clienteIP == ""){
+            if (clienteIP.equals("")) {
                 // Obtener la dirección IP del cliente
                 clienteIP = packet.getAddress().getHostAddress();
             }
@@ -113,11 +117,33 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 throw new RuntimeException(e);
             }
 
-            System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
+            byte[] packetData = Arrays.copyOf(buffer, packetBytes);
+            int packetIndex = ByteBuffer.wrap(packetData, 0, 4).getInt();
+
+            if (packetIndex >= 0 && packetIndex < totalBytes) {
+                videoFramePackets.put(packetIndex, packetData);
+            }
 
             receivedBytes += packetBytes;
         }
-        return receivedData;
+
+        return reconstructData(videoFramePackets, totalBytes);
+    }
+
+    private byte[] reconstructData(Map<Integer, byte[]> packets, int totalBytes) {
+        byte[] data = new byte[totalBytes];
+        int dataIndex = 0;
+
+        for (int i = 0; i < packets.size(); i++) {
+            byte[] packetData = packets.get(i);
+            if (packetData != null) {
+                int packetSize = packetData.length - 4;
+                System.arraycopy(packetData, 4, data, dataIndex, packetSize);
+                dataIndex += packetSize;
+            }
+        }
+
+        return data;
     }
 
     public void start() {

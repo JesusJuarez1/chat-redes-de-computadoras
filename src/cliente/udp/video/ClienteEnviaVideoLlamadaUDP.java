@@ -178,14 +178,28 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
         videoSocket.send(sizePacket);
 
+        // Calcular el número total de paquetes necesarios
+        int totalPackets = (int) Math.ceil((double) totalBytes / packetSize);
+
         while (sentBytes < totalBytes) {
             int remainingBytes = totalBytes - sentBytes;
             int packetBytes = Math.min(packetSize, remainingBytes);
 
-            DatagramPacket packet;
-            packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
+            // Crear un arreglo de bytes para el paquete actual
+            byte[] packetData = new byte[packetBytes];
 
+            // Copiar los datos correspondientes al paquete actual
+            System.arraycopy(data, sentBytes, packetData, 0, packetBytes);
+
+            // Enviar el paquete con un encabezado adicional
+            byte[] packetHeader = ByteBuffer.allocate(4).putInt(sentBytes).array();
+            byte[] packetWithHeader = new byte[packetBytes + 4];
+            System.arraycopy(packetHeader, 0, packetWithHeader, 0, 4);
+            System.arraycopy(packetData, 0, packetWithHeader, 4, packetBytes);
+
+            DatagramPacket packet = new DatagramPacket(packetWithHeader, packetWithHeader.length, serverAddress, port);
             videoSocket.send(packet);
+
             sentBytes += packetBytes;
         }
     }
