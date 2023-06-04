@@ -4,6 +4,7 @@ import cliente.tcp.ClienteTCP;
 import cliente.udp.video.ClienteLlamadaUDP;
 import cliente.udp.ClienteUDP;
 
+import javax.sound.sampled.*;
 import java.io.File;
 import java.util.Scanner;
 import java.net.InetAddress;
@@ -35,7 +36,11 @@ public class Chat {
                     enviarArchivos();
                     break;
                 case 3:
-                    realizarVideollamada();
+                    try {
+                        realizarVideollamada();
+                    } catch (LineUnavailableException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 case 4:
                     // Opción de salir
@@ -55,7 +60,7 @@ public class Chat {
     /**
      * Tiene la funcionalidad necesaria para realizar una videollamada
      */
-    private void realizarVideollamada() {
+    private void realizarVideollamada() throws LineUnavailableException {
         String servidor = obtenerDireccionIPDestinatario();
         ClienteLlamadaUDP cliente = new ClienteLlamadaUDP(servidor);
         try {
@@ -63,7 +68,6 @@ public class Chat {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
         // Esperar a que los hilos del cliente finalicen
         while (cliente.isActivo()) {
             try {

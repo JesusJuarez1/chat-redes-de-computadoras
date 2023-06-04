@@ -9,12 +9,16 @@ import org.opencv.imgproc.Imgproc;
 
 import javax.sound.sampled.*;
 import javax.swing.*;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
 public class ClienteEnviaVideoLlamadaUDP extends Thread {
@@ -31,11 +35,10 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private DatagramSocket videoSocket;
     private DatagramSocket audioSocket;
     private InetAddress serverAddress;
-
+    private TargetDataLine targetDataLine;
+    private SourceDataLine sourceDataLine;
     private VideoCapture videoCapture;
     private AudioFormat audioFormat;
-    private TargetDataLine targetDataLine;
-
     private JFrame frame;
     private JLabel videoLabel;
     private JButton stopButton;
@@ -50,10 +53,21 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         }
 
         videoCapture = new VideoCapture(0);
-        audioFormat = new AudioFormat(8000.0f, 16, 1, true, true);
+
+        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, AUDIO_BUFFER_SIZE, false);
         DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
+
         try {
             targetDataLine = (TargetDataLine) AudioSystem.getLine(dataLineInfo);
+            targetDataLine.open();
+        } catch (LineUnavailableException e) {
+            throw new RuntimeException(e);
+        }
+
+        SourceDataLine.Info sourceDataLineInfo = new SourceDataLine.Info(SourceDataLine.class, audioFormat);
+        try {
+            sourceDataLine = (SourceDataLine) AudioSystem.getLine(sourceDataLineInfo);
+            sourceDataLine.open();
         } catch (LineUnavailableException e) {
             throw new RuntimeException(e);
         }
@@ -119,9 +133,18 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
     public void run() {
         try {
-            byte[] audioBuffer = new byte[AUDIO_BUFFER_SIZE];
-
+            byte[] audioBuffer = null;
+            targetDataLine.start();
+            sourceDataLine.start();
             // Start displaying the video
+
+            Thread hilo = new Thread(){
+                @Override
+                public void run(){
+                    AudioInputStream audio = new AudioInputStream(targetDataLine);
+                }
+            };
+
             displayVideo();
             isRunning = true;
             while (isRunning) {
@@ -141,37 +164,25 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 byte[] compressedVideo = matOfByte.toArray();
 
                 // Send video frame
-                /*Thread videoThread = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            sendData(compressedVideo, VIDEO_PORT);
-                        } catch (Exception e) {
-                            System.err.println("Exception: " + e.getMessage());
-                        }
-                    }
-                };
-                videoThread.start();*/
-
                 sendData(compressedVideo, VIDEO_PORT);
 
-                // Capture audio frame
-                targetDataLine.open(audioFormat);
-                targetDataLine.start();
+                // Capturar audio frame
+                int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
 
-                /*Thread audioThread = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            sendData(audioBuffer, AUDIO_PORT);
-                        } catch (Exception e) {
-                            System.err.println("Exception: " + e.getMessage());
-                        }
-                    }
-                };
-                audioThread.join();
-                */
-                sendData(audioBuffer, AUDIO_PORT);
+                // Reproducir audio capturado
+                sourceDataLine.write(audioBuffer, 0, bytesRead);
+
+                if (sourceDataLine.isActive()) {
+                    System.out.println("Audio en reproducción");
+                } else {
+                    System.out.println("No se está reproduciendo audio");
+                }
+
+                // Send audio buffer
+                if (bytesRead > 0) {
+                    // Enviar datos de audio
+                    sendData(audioBuffer, AUDIO_PORT);
+                }
             }
             // Cleanup resources
             videoCapture.release();
