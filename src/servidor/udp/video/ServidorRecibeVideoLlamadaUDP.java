@@ -19,12 +19,11 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
     private static final int FRAME_HEIGHT = 480;
     private static final int AUDIO_BUFFER_SIZE = 4096;
-    private static final int PACKET_SIZE = 65507;
-    private static final int VIDEO_PORT = 50000;
-    private static final int AUDIO_PORT = 50001;
+    private static final int VIDEO_PORT = 5000;
+    private static final int AUDIO_PORT = 5001;
 
-    private DatagramSocket videoSocket;
-    private DatagramSocket audioSocket;
+    private final DatagramSocket videoSocket;
+    private final DatagramSocket audioSocket;
 
     private JFrame frame;
     private JLabel videoLabel;
