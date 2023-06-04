@@ -65,14 +65,6 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             throw new RuntimeException(e);
         }
 
-        SourceDataLine.Info sourceDataLineInfo = new SourceDataLine.Info(SourceDataLine.class, audioFormat);
-        try {
-            sourceDataLine = (SourceDataLine) AudioSystem.getLine(sourceDataLineInfo);
-            sourceDataLine.open();
-        } catch (LineUnavailableException e) {
-            throw new RuntimeException(e);
-        }
-
         frame = new JFrame("Cliente");
         videoLabel = new JLabel();
         stopButton = new JButton("Detener envío");
@@ -134,7 +126,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
     public void run() {
         try {
-            byte[] audioBuffer = new byte[AUDIO_BUFFER_SIZE];
+            byte[] audioBuffer = null;
             targetDataLine.start();
 
             // Start displaying the video
@@ -159,14 +151,12 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 // Send video frame
                 sendData(compressedVideo, VIDEO_PORT);
 
+                audioBuffer = new byte[AUDIO_BUFFER_SIZE];
                 // Capturar audio frame
                 int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
 
                 // Send audio buffer
-                if (bytesRead > 0) {
-                    // Enviar datos de audio
-                    sendData(audioBuffer, AUDIO_PORT);
-                }
+                sendData(audioBuffer, AUDIO_PORT);
             }
             // Cleanup resources
             videoCapture.release();
