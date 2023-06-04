@@ -108,7 +108,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     public void start() {
         isRunning = true;
         while (isRunning) {
-            Thread videoThread = new Thread() {
+            /*Thread videoThread = new Thread() {
                 @Override
                 public void run() {
                     // Receive video frame
@@ -127,10 +127,26 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                     videoLabel.repaint();
                 }
             };
-            videoThread.start();
+            videoThread.start();*/
+
+            // Receive video frame
+            int totalBytes = receiveDataSize(videoSocket);
+            byte[] receivedData = null;
+            try {
+                receivedData = receiveData(videoSocket,totalBytes);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            Mat frame = decodeFrame(receivedData);
+            BufferedImage image = matToBufferedImage(frame);
+            // Display video frame
+            ImageIcon icon = new ImageIcon(image);
+            videoLabel.setIcon(icon);
+            videoLabel.repaint();
+            System.out.println("HA");
 
             // Receive audio frame
-            Thread audioThread = new Thread() {
+            /*Thread audioThread = new Thread() {
                 @Override
                 public void run() {
                     int totalBytesAudio = receiveDataSize(audioSocket);
@@ -144,7 +160,24 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                     sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
                 }
             };
-            audioThread.start();
+            audioThread.start();*/
+
+            int totalBytesAudio = receiveDataSize(audioSocket);
+            byte[] receivedDataAudio = new byte[0];
+            try {
+                receivedDataAudio = receiveData(audioSocket, totalBytesAudio);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            // Last packet received, play the audio
+            sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+
+            /*try {
+                audioThread.join();
+                videoThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }*/
         }
 
         // Cleanup resources

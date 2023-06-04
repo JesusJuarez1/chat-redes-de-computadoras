@@ -1,6 +1,5 @@
 package servidor.udp.video;
 
-import cliente.udp.video.ClienteEnviaVideoLlamadaUDP;
 import org.opencv.core.Core;
 
 import java.net.DatagramSocket;

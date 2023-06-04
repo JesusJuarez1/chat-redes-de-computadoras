@@ -25,7 +25,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int PACKET_SIZE = 65507;
     private static final int VIDEO_PORT = 50000;
     private static final int AUDIO_PORT = 50001;
-    private static final int TIMEOUT = 100;
+    private static final int TIMEOUT = 200;
     private volatile boolean isRunning;
 
     private DatagramSocket videoSocket;
@@ -141,7 +141,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 byte[] compressedVideo = matOfByte.toArray();
 
                 // Send video frame
-                Thread videoThread = new Thread() {
+                /*Thread videoThread = new Thread() {
                     @Override
                     public void run() {
                         try {
@@ -151,13 +151,15 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                         }
                     }
                 };
-                videoThread.start();
+                videoThread.start();*/
+
+                sendData(compressedVideo, VIDEO_PORT);
 
                 // Capture audio frame
                 targetDataLine.open(audioFormat);
                 targetDataLine.start();
 
-                Thread audioThread = new Thread() {
+                /*Thread audioThread = new Thread() {
                     @Override
                     public void run() {
                         try {
@@ -167,7 +169,9 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                         }
                     }
                 };
-                audioThread.start();
+                audioThread.join();
+                */
+                sendData(audioBuffer, AUDIO_PORT);
             }
             // Cleanup resources
             videoCapture.release();
