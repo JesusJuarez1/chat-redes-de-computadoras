@@ -25,6 +25,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int PACKET_SIZE = 65507;
     private static final int VIDEO_PORT = 50000;
     private static final int AUDIO_PORT = 50001;
+    private static final int TIMEOUT = 100;
     private volatile boolean isRunning;
 
     private DatagramSocket videoSocket;
@@ -182,13 +183,61 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             int remainingBytes = totalBytes - sentBytes;
             int packetBytes = Math.min(packetSize, remainingBytes);
 
+            DatagramPacket packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
+            boolean isPacketReceived = false;
+
+            while (!isPacketReceived) {
+                // Enviar el paquete
+                videoSocket.send(packet);
+
+                // Iniciar temporizador
+                long startTime = System.currentTimeMillis();
+
+                // Esperar la confirmación de recepción durante un tiempo límite
+                while (System.currentTimeMillis() - startTime < TIMEOUT) {
+                    byte[] confirmationData = new byte[1];
+                    DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
+                    videoSocket.receive(confirmationPacket);
+
+                    // Verificar si se recibió la confirmación del paquete
+                    if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
+                        isPacketReceived = true;
+                        break;
+                    }
+                }
+
+                if (!isPacketReceived) {
+                    // El paquete se perdió, imprimir un mensaje y reintentar el envío
+                    System.err.println("Packet lost, retransmitting...");
+                }
+            }
+
+            sentBytes += packetBytes;
+        }
+    }
+    /*private void sendData(byte[] data, int port) throws Exception {
+        int totalBytes = data.length;
+        int sentBytes = 0;
+        int packetSize = 1400;
+
+        // Convertir el tamaño total en un arreglo de bytes
+        byte[] totalBytesData = ByteBuffer.allocate(4).putInt(totalBytes).array();
+
+        // Enviar el tamaño total primero
+        DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
+        videoSocket.send(sizePacket);
+
+        while (sentBytes < totalBytes) {
+            int remainingBytes = totalBytes - sentBytes;
+            int packetBytes = Math.min(packetSize, remainingBytes);
+
             DatagramPacket packet;
             packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
 
             videoSocket.send(packet);
             sentBytes += packetBytes;
         }
-    }
+    }*/
 
     private BufferedImage matToBufferedImage(Mat mat) {
         int type = BufferedImage.TYPE_BYTE_GRAY;

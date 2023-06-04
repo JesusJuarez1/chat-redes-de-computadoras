@@ -68,14 +68,17 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         DatagramPacket sizePacket = new DatagramPacket(sizeData, sizeData.length);
         try {
             socket.receive(sizePacket);
+            byte[] confirmationData = {1};
+            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, sizePacket.getAddress(), sizePacket.getPort());
+            socket.send(confirmationPacket);
             return ByteBuffer.wrap(sizeData).getInt();
-        } catch (Exception e) {
-            System.err.println("Exception: " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Error al recibir el tamaño de datos: " + e.getMessage());
             return 0;
         }
     }
 
-    private byte[] receiveData(DatagramSocket socket, int totalBytes) throws Exception {
+    private byte[] receiveData(DatagramSocket socket, int totalBytes) throws IOException {
         int receivedBytes = 0;
         int packetSize = 1400;
         byte[] receivedData = new byte[totalBytes];
@@ -88,12 +91,15 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 socket.receive(packet);
+                byte[] confirmationData = {1};
+                DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, packet.getAddress(), packet.getPort());
+                socket.send(confirmationPacket);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.err.println("Error al recibir el paquete: " + e.getMessage());
+                throw e;
             }
 
             System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
-
             receivedBytes += packetBytes;
         }
         return receivedData;
