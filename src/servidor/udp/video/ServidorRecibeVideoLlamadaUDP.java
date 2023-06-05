@@ -15,6 +15,7 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -77,7 +78,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, senderAddress.getAddress(), senderAddress.getPort());
             socket.send(confirmationPacket);
             return ByteBuffer.wrap(sizeData).getInt();
-        } catch (IOException e) {
+        } catch (Exception e) {
             //System.err.println("Error al recibir el tamaño de datos: " + e.getMessage());
             return 0;
         }
@@ -98,7 +99,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
             byte[] buffer = new byte[packetBytes];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            byte[] prevBuffer = new byte[packetBytes];
+            byte[] prevBuffer = new byte[buffer.length];
             DatagramPacket prevPacket = new DatagramPacket(prevBuffer, buffer.length);
             try {
                 socket.setSoTimeout(900);
@@ -119,14 +120,30 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 } catch (IOException ex) {
                     //throw new RuntimeException(ex);
                 }
-                packet.setData(prevBuffer);
+                //packet.setData(prevBuffer);
                 //System.err.println("Error al recibir el paquete: " + e.getMessage());
                 //throw e;
             }
-            if (packet.getData() == prevBuffer) {
-                System.arraycopy(prevBuffer, 0, receivedData, receivedBytes, packetBytes);
-            } else {
-                System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
+
+            if(packet.getData() != null){
+                boolean isEmpty = true;
+                for (byte b : prevBuffer) {
+                    if (b != 0) {
+                        isEmpty = false;
+                        break;
+                    }
+                }
+                if (!isEmpty) {
+                    System.arraycopy(prevBuffer, 0, receivedData, receivedBytes, packetBytes);
+                } else {
+                    System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
+                }
+            }else {
+                // El paquete se perdió, se rellena el buffer con datos de relleno
+                byte[] fillerData = new byte[packetBytes];
+                // Rellenar el buffer con datos de relleno (por ejemplo, ceros)
+                Arrays.fill(fillerData, (byte) 0);
+                System.arraycopy(fillerData, 0, receivedData, receivedBytes, packetBytes);
             }
             receivedBytes += packetBytes;
 
@@ -145,6 +162,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 receivedData = receiveData(videoSocket);
             } catch (Exception e) {
                 System.err.println("Video " + e.getMessage());
+                continue; // Salta a la siguiente iteración del bucle
                 //throw new RuntimeException(e);
             }
             if(receivedData != null){
@@ -167,6 +185,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 receivedDataAudio = receiveData(audioSocket);
             } catch (Exception e) {
                 System.err.println("Audio " + e.getMessage());
+                continue;
                 //throw new RuntimeException(e);
             }
             if(receivedDataAudio != null){
@@ -174,7 +193,11 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
                 if(receivedDataAudio != null){
                     // Last packet received, play the audio
-                    sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+                    try {
+                        sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+                    }catch (IllegalArgumentException e){
+
+                    }
                 }
             }
         }

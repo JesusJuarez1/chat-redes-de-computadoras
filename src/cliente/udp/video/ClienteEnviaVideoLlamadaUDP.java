@@ -190,8 +190,9 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
     private void isPacketReceived(DatagramPacket sizePacket, int port) {
         boolean isPacketReceived = false;
+        int attempts1 = 0;
 
-        while (!isPacketReceived) {
+        while (!isPacketReceived && attempts1 <= MAX_ATTEMPTS) {
             // Enviar el paquete
             try {
                 socket.send(sizePacket);
@@ -231,6 +232,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 }
                 attempts++;
             }
+            attempts1++;
         }
     }
 
@@ -252,7 +254,18 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
             DatagramPacket packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
 
-            isPacketReceived(packet, port);
+            Thread t = new Thread(){
+                @Override
+                public void run(){
+                    isPacketReceived(packet, port);
+                }
+            };
+            t.start();
+            try {
+                t.join(910);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
 
             sentBytes += packetBytes;
         }
