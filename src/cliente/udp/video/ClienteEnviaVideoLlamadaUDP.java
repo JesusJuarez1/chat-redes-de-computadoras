@@ -122,44 +122,40 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     }
 
     public void run() {
-        try {
-            byte[] audioBuffer = null;
-            targetDataLine.start();
+        byte[] audioBuffer = null;
+        targetDataLine.start();
 
-            // Start displaying the video
-            displayVideo();
-            isRunning = true;
-            while (isRunning) {
-                // Capture video frame
-                Mat frame = new Mat();
-                videoCapture.read(frame);
+        // Start displaying the video
+        displayVideo();
+        isRunning = true;
+        while (isRunning) {
+            // Capture video frame
+            Mat frame = new Mat();
+            videoCapture.read(frame);
 
-                // Convert video frame to compressed bytes
-                MatOfByte matOfByte = new MatOfByte();
-                Imgcodecs.imencode(".jpg", frame, matOfByte);
-                byte[] compressedVideo = matOfByte.toArray();
+            // Convert video frame to compressed bytes
+            MatOfByte matOfByte = new MatOfByte();
+            Imgcodecs.imencode(".jpg", frame, matOfByte);
+            byte[] compressedVideo = matOfByte.toArray();
 
 
-                audioBuffer = new byte[AUDIO_BUFFER_SIZE];
-                // Capturar audio frame
-                int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
+            audioBuffer = new byte[AUDIO_BUFFER_SIZE];
+            // Capturar audio frame
+            int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
 
-                // Send video frame
-                sendData(compressedVideo, VIDEO_PORT);
+            // Send video frame
+            sendData(compressedVideo, VIDEO_PORT);
 
-                // Compress audio buffer
-                byte[] compressedAudio = compressAudio(audioBuffer);
-                // Send audio buffer
-                sendData(compressedAudio, AUDIO_PORT);
-            }
-            // Cleanup resources
-            videoCapture.release();
-            targetDataLine.stop();
-            targetDataLine.close();
-            socket.close();
-        } catch (Exception e) {
-            System.err.println("Exception: " + e.getMessage());
+            // Compress audio buffer
+            byte[] compressedAudio = compressAudio(audioBuffer);
+            // Send audio buffer
+            sendData(compressedAudio, AUDIO_PORT);
         }
+        // Cleanup resources
+        videoCapture.release();
+        targetDataLine.stop();
+        targetDataLine.close();
+        socket.close();
     }
 
     private byte[] compressAudio(byte[] data) {
@@ -191,6 +187,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private void isPacketReceived(DatagramPacket sizePacket, int port) {
         boolean isPacketReceived = false;
         int attempts1 = 0;
+        int attempts = 0;
 
         while (!isPacketReceived && attempts1 <= MAX_ATTEMPTS) {
             // Enviar el paquete
@@ -199,13 +196,12 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            int attempts = 0;
 
             byte[] confirmationData = new byte[1];
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
             long startTime = System.currentTimeMillis(); // Obtener el tiempo de inicio
 
-            while (attempts < MAX_ATTEMPTS) {
+            while (attempts < 6) {
                 try {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     long remainingTime = TIMEOUT - elapsedTime;
@@ -214,7 +210,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                         break; // Se superó el tiempo de espera, salir del bucle interno
                     }
 
-                    socket.setSoTimeout(TIMEOUT);
+                    socket.setSoTimeout((int) remainingTime);
                     socket.receive(confirmationPacket);
 
                     // Verificar si se recibió la confirmación del paquete
