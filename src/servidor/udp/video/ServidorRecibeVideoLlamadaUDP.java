@@ -22,7 +22,7 @@ import java.util.zip.Inflater;
 public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
     private static final int FRAME_HEIGHT = 480;
-    private static final int BUFFER_SIZE = 48000;
+    private static final int BUFFER_SIZE = 40000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
 
@@ -145,7 +145,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 Arrays.fill(fillerData, (byte) 0);
                 System.arraycopy(fillerData, 0, receivedData, receivedBytes, packetBytes);
             }
-            receivedBytes += packetBytes;
+            receivedBytes += packetSize;
 
         }
         return receivedData;
@@ -161,7 +161,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             try {
                 receivedData = receiveData(videoSocket);
             } catch (Exception e) {
-                System.err.println("Video " + e.getMessage());
+                //System.err.println("Video " + e.getMessage());
                 continue; // Salta a la siguiente iteración del bucle
                 //throw new RuntimeException(e);
             }
@@ -184,7 +184,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             try {
                 receivedDataAudio = receiveData(audioSocket);
             } catch (Exception e) {
-                System.err.println("Audio " + e.getMessage());
+                //System.err.println("Audio " + e.getMessage());
                 continue;
                 //throw new RuntimeException(e);
             }
@@ -218,7 +218,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         try {
             decompressedSize = inflater.inflate(decompressedData);
         } catch (DataFormatException e) {
-            System.err.println("Descompresion " + e.getMessage());
+            //System.err.println("Descompresion " + e.getMessage());
             //throw new RuntimeException("Error decompressing data: " + e.getMessage());
             return null;
         }
