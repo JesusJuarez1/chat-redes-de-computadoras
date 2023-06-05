@@ -20,15 +20,13 @@ public class ClienteLlamadaUDP extends Thread{
     public void inicia() throws Exception{
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         DatagramSocket videoSocket = null;
-        DatagramSocket audioSocket = null;
         try {
             videoSocket = new DatagramSocket();
-            audioSocket = new DatagramSocket();
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
         ClienteEnviaVideoLlamadaUDP videoLlamada = null;
-        videoLlamada = new ClienteEnviaVideoLlamadaUDP(SERVER, videoSocket, audioSocket);
+        videoLlamada = new ClienteEnviaVideoLlamadaUDP(SERVER, videoSocket);
         videoLlamada.start();
 
         activo = true;

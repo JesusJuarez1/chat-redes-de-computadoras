@@ -18,7 +18,7 @@ import java.nio.ByteBuffer;
 public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
     private static final int FRAME_HEIGHT = 480;
-    private static final int AUDIO_BUFFER_SIZE = 4096;
+    private static final int BUFFER_SIZE = 48000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
 
@@ -52,7 +52,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         frame.setSize(FRAME_WIDTH, FRAME_HEIGHT);
         frame.setVisible(true);
 
-        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, AUDIO_BUFFER_SIZE, false);
+        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, BUFFER_SIZE, true);
         SourceDataLine.Info sourceDataLineInfo = new SourceDataLine.Info(SourceDataLine.class, audioFormat);
         try {
             sourceDataLine = (SourceDataLine) AudioSystem.getLine(sourceDataLineInfo);
@@ -106,6 +106,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
     public void start() {
         isRunning = true;
+        sourceDataLine.start();
         while (isRunning) {
 
             // Receive video frame

@@ -26,14 +26,14 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
     private static final int FRAME_HEIGHT = 480;
     private static final int FPS = 30;
-    private static final int AUDIO_BUFFER_SIZE = 4096;
+    private static final int AUDIO_BUFFER_SIZE = 10000;
+    private static final int BUFFER_SIZE = 48000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
-    private static final int TIMEOUT = 250;
+    private static final int TIMEOUT = 400;
     private volatile boolean isRunning;
 
-    private DatagramSocket videoSocket;
-    private DatagramSocket audioSocket;
+    private DatagramSocket socket;
     private InetAddress serverAddress;
     private TargetDataLine targetDataLine;
     private VideoCapture videoCapture;
@@ -42,9 +42,8 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private JLabel videoLabel;
     private JButton stopButton;
 
-    public ClienteEnviaVideoLlamadaUDP(String server, DatagramSocket videoSocket, DatagramSocket audioSocket) {
-        this.videoSocket = videoSocket;
-        this.audioSocket = audioSocket;
+    public ClienteEnviaVideoLlamadaUDP(String server, DatagramSocket socket) {
+        this.socket = socket;
         try {
             serverAddress = InetAddress.getByName(server);
         } catch (UnknownHostException e) {
@@ -53,7 +52,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
         videoCapture = new VideoCapture(0);
 
-        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, AUDIO_BUFFER_SIZE, false);
+        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, BUFFER_SIZE, true);
         DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
 
         try {
@@ -160,8 +159,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             videoCapture.release();
             targetDataLine.stop();
             targetDataLine.close();
-            videoSocket.close();
-            audioSocket.close();
+            socket.close();
         } catch (Exception e) {
             System.err.println("Exception: " + e.getMessage());
             throw new RuntimeException(e);
@@ -171,6 +169,33 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private void stopSending() {
         isRunning = false;
         frame.dispose();
+    }
+
+    private void isPacketReceived(DatagramPacket sizePacket, int port){
+        boolean isPacketReceived = false;
+        while (!isPacketReceived) {
+            // Enviar el paquete
+            try {
+                socket.send(sizePacket);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            byte[] confirmationData = new byte[1];
+            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
+            try {
+                socket.setSoTimeout(TIMEOUT);
+                socket.receive(confirmationPacket);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            // Verificar si se recibió la confirmación del paquete
+            if(confirmationPacket.getAddress() != null){
+                if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
+                    isPacketReceived = true;
+                }
+            }
+        }
     }
 
     private void sendData(byte[] data, int port) {
@@ -183,97 +208,15 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
         // Enviar el tamaño total primero
         DatagramPacket sizePacket = new DatagramPacket(totalBytesData, totalBytesData.length, serverAddress, port);
-        boolean isPacketSizeReceived = false;
-        while (!isPacketSizeReceived) {
-            // Enviar el paquete
-            try {
-                videoSocket.send(sizePacket);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            byte[] confirmationData = new byte[1];
-            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
-            Thread hilo = new Thread(){
-                @Override
-                public void run(){
-                    try {
-                        videoSocket.receive(confirmationPacket);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            };
-            hilo.start();
-            // Esperar la confirmación de recepción durante un tiempo límite
-            try {
-                hilo.join(TIMEOUT);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            // Verificar si se recibió la confirmación del paquete
-            if(confirmationPacket.getAddress() == null){
-                hilo.interrupt();
-            }else{
-                if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
-                    isPacketSizeReceived = true;
-                }
-            }
-
-            if (!isPacketSizeReceived) {
-                // El paquete se perdió, imprimir un mensaje y reintentar el envío
-                System.err.println("Packet lost, retransmitting...");
-            }
-        }
+        isPacketReceived(sizePacket, port);
 
         while (sentBytes < totalBytes) {
             int remainingBytes = totalBytes - sentBytes;
             int packetBytes = Math.min(packetSize, remainingBytes);
 
             DatagramPacket packet = new DatagramPacket(data, sentBytes, packetBytes, serverAddress, port);
-            boolean isPacketReceived = false;
 
-            while (!isPacketReceived) {
-                // Enviar el paquete
-                try {
-                    videoSocket.send(packet);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-
-                byte[] confirmationData = new byte[1];
-                DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
-                Thread hilo = new Thread(){
-                    @Override
-                    public void run(){
-                        try {
-                            videoSocket.receive(confirmationPacket);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                };
-                hilo.start();
-                // Esperar la confirmación de recepción durante un tiempo límite
-                try {
-                    hilo.join(TIMEOUT);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                // Verificar si se recibió la confirmación del paquete
-                if(confirmationPacket.getAddress() == null){
-                    hilo.interrupt();
-                }else{
-                    if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
-                        isPacketReceived = true;
-                    }
-                }
-
-                if (!isPacketReceived) {
-                    // El paquete se perdió, imprimir un mensaje y reintentar el envío
-                    System.err.println("Packet lost, retransmitting...");
-                }
-            }
+            isPacketReceived(packet, port);
 
             sentBytes += packetBytes;
         }
