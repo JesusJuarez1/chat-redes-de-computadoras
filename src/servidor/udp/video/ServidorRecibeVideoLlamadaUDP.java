@@ -15,6 +15,8 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
@@ -80,9 +82,10 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         }
     }
 
-    private byte[] receiveData(DatagramSocket socket, int totalBytes) throws IOException {
+    private byte[] receiveData(DatagramSocket socket) throws IOException {
+        int totalBytes = receiveDataSize(socket);
         int receivedBytes = 0;
-        int packetSize = 1400;
+        int packetSize = 1460;
         byte[] receivedData = new byte[totalBytes];
 
         while (receivedBytes < totalBytes) {
@@ -112,15 +115,16 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     }
 
     public void start() {
+
+
         isRunning = true;
         sourceDataLine.start();
         while (isRunning) {
 
             // Receive video frame
-            int totalBytes = receiveDataSize(videoSocket);
             byte[] receivedData = null;
             try {
-                receivedData = receiveData(videoSocket,totalBytes);
+                receivedData = receiveData(videoSocket);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -132,13 +136,13 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             videoLabel.repaint();
 
             // Receive audio frame
-            int totalBytesAudio = receiveDataSize(audioSocket);
             byte[] receivedDataAudio = new byte[0];
             try {
-                receivedDataAudio = receiveData(audioSocket, totalBytesAudio);
+                receivedDataAudio = receiveData(audioSocket);
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                //throw new RuntimeException(e);
             }
+            receivedDataAudio = decompressAudio(receivedDataAudio);
             // Last packet received, play the audio
             sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
         }
@@ -148,6 +152,26 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         audioSocket.close();
         sourceDataLine.stop();
         sourceDataLine.close();
+    }
+
+    private byte[] decompressAudio(byte[] compressedData) {
+        Inflater inflater = new Inflater();
+        inflater.setInput(compressedData);
+
+        byte[] decompressedData = new byte[compressedData.length * 4]; // Estimate initial size
+        int decompressedSize;
+        try {
+            decompressedSize = inflater.inflate(decompressedData);
+        } catch (DataFormatException e) {
+            throw new RuntimeException("Error decompressing data: " + e.getMessage());
+        }
+        inflater.end();
+
+        // Create a new array with the exact size of the decompressed data
+        byte[] decompressedBytes = new byte[decompressedSize];
+        System.arraycopy(decompressedData, 0, decompressedBytes, 0, decompressedSize);
+
+        return decompressedBytes;
     }
 
     private Mat decodeFrame(byte[] compressedData) {

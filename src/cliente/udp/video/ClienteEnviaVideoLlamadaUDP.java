@@ -16,21 +16,19 @@ import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.nio.ByteBuffer;
+import java.util.zip.Deflater;
 
 public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
     private static final int FRAME_HEIGHT = 480;
     private static final int FPS = 30;
-    private static final int AUDIO_BUFFER_SIZE = 10000;
+    private static final int AUDIO_BUFFER_SIZE = 20000;
     private static final int BUFFER_SIZE = 48000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
-    private static final int TIMEOUT = 400;
+    private static final int TIMEOUT = 300;
     private volatile boolean isRunning;
 
     private DatagramSocket socket;
@@ -52,7 +50,8 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
         videoCapture = new VideoCapture(0);
 
-        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, BUFFER_SIZE, true);
+        audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2,
+                4, BUFFER_SIZE, true);
         DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
 
         try {
@@ -133,27 +132,24 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 // Capture video frame
                 Mat frame = new Mat();
                 videoCapture.read(frame);
-                BufferedImage image = matToBufferedImage(frame);
-
-                // Display video frame
-                ImageIcon icon = new ImageIcon(image);
-                videoLabel.setIcon(icon);
-                videoLabel.repaint();
 
                 // Convert video frame to compressed bytes
                 MatOfByte matOfByte = new MatOfByte();
                 Imgcodecs.imencode(".jpg", frame, matOfByte);
                 byte[] compressedVideo = matOfByte.toArray();
 
-                // Send video frame
-                sendData(compressedVideo, VIDEO_PORT);
 
                 audioBuffer = new byte[AUDIO_BUFFER_SIZE];
                 // Capturar audio frame
                 int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
+                // Compress audio buffer
+                byte[] compressedAudio = compressAudio(audioBuffer);
+
+                // Send video frame
+                sendData(compressedVideo, VIDEO_PORT);
 
                 // Send audio buffer
-                sendData(audioBuffer, AUDIO_PORT);
+                sendData(compressedAudio, AUDIO_PORT);
             }
             // Cleanup resources
             videoCapture.release();
@@ -162,8 +158,23 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             socket.close();
         } catch (Exception e) {
             System.err.println("Exception: " + e.getMessage());
-            throw new RuntimeException(e);
         }
+    }
+
+    private byte[] compressAudio(byte[] data) {
+        Deflater deflater = new Deflater();
+        deflater.setInput(data);
+        deflater.finish();
+
+        byte[] compressedData = new byte[data.length];
+        int compressedSize = deflater.deflate(compressedData);
+        deflater.end();
+
+        // Create a new array with the exact size of the compressed data
+        byte[] compressedBytes = new byte[compressedSize];
+        System.arraycopy(compressedData, 0, compressedBytes, 0, compressedSize);
+
+        return compressedBytes;
     }
 
     private void stopSending() {
@@ -186,33 +197,46 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
             byte[] confirmationData = new byte[1];
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
-            try {
-                socket.setSoTimeout(TIMEOUT);
-                socket.receive(confirmationPacket);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            long startTime = System.currentTimeMillis(); // Obtener el tiempo de inicio
 
-            // Verificar si se recibió la confirmación del paquete
-            if (confirmationPacket.getAddress() != null) {
-                if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
-                    isPacketReceived = true;
+            while (true) {
+                try {
+                    long elapsedTime = System.currentTimeMillis() - startTime;
+                    long remainingTime = TIMEOUT - elapsedTime;
+
+                    if (remainingTime <= 0) {
+                        break; // Se superó el tiempo de espera, salir del bucle interno
+                    }
+
+                    socket.setSoTimeout((int) remainingTime);
+                    socket.receive(confirmationPacket);
+
+                    // Verificar si se recibió la confirmación del paquete
+                    if (confirmationPacket.getAddress() != null) {
+                        if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
+                            isPacketReceived = true;
+                            break; // Confirmación recibida, salir del bucle interno
+                        }
+                    }
+                } catch (SocketTimeoutException e) {
+                    // Se superó el tiempo de espera, continuar con el siguiente intento
+                    break;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
             }
-
             attempts++;
         }
-
         if (!isPacketReceived) {
             // No se recibió la confirmación después de los intentos máximos permitidos
-            throw new RuntimeException("No se recibió la confirmación del paquete después de varios intentos.");
+            //throw new RuntimeException("No se recibió la confirmación del paquete después de varios intentos.");
         }
     }
 
     private void sendData(byte[] data, int port) {
         int totalBytes = data.length;
         int sentBytes = 0;
-        int packetSize = 1400;
+        int packetSize = 1460;
 
         // Convertir el tamaño total en un arreglo de bytes
         byte[] totalBytesData = ByteBuffer.allocate(4).putInt(totalBytes).array();
