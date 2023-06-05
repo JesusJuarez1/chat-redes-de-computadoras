@@ -10,10 +10,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.zip.DataFormatException;
@@ -25,6 +22,8 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int BUFFER_SIZE = 40000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
+
+    protected String address = "";
 
     private final DatagramSocket videoSocket;
     private final DatagramSocket audioSocket;
@@ -73,7 +72,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             socket.setSoTimeout(200);
             socket.receive(sizePacket);
             InetSocketAddress senderAddress = new InetSocketAddress(sizePacket.getAddress(), sizePacket.getPort());
-
+            this.setAddress(String.valueOf(sizePacket.getAddress()));
             byte[] confirmationData = {1};
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, senderAddress.getAddress(), senderAddress.getPort());
             socket.send(confirmationPacket);
@@ -218,8 +217,6 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         try {
             decompressedSize = inflater.inflate(decompressedData);
         } catch (DataFormatException e) {
-            //System.err.println("Descompresion " + e.getMessage());
-            //throw new RuntimeException("Error decompressing data: " + e.getMessage());
             return null;
         }
         inflater.end();
@@ -264,5 +261,13 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
     public boolean isRunning() {
         return isRunning;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getAddress() {
+        return address;
     }
 }
