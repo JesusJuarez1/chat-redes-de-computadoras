@@ -12,6 +12,7 @@ import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 
@@ -67,8 +68,10 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         DatagramPacket sizePacket = new DatagramPacket(sizeData, sizeData.length);
         try {
             socket.receive(sizePacket);
+            InetSocketAddress senderAddress = new InetSocketAddress(sizePacket.getAddress(), sizePacket.getPort());
+
             byte[] confirmationData = {1};
-            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, sizePacket.getAddress(), sizePacket.getPort());
+            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, senderAddress.getAddress(), senderAddress.getPort());
             socket.send(confirmationPacket);
             return ByteBuffer.wrap(sizeData).getInt();
         } catch (IOException e) {
@@ -90,8 +93,12 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 socket.receive(packet);
+                // Crear objeto InetSocketAddress para representar la dirección del remitente
+                InetSocketAddress senderAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
+
                 byte[] confirmationData = {1};
-                DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, packet.getAddress(), packet.getPort());
+                DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length,
+                        senderAddress.getAddress(), senderAddress.getPort());
                 socket.send(confirmationPacket);
             } catch (IOException e) {
                 System.err.println("Error al recibir el paquete: " + e.getMessage());

@@ -171,9 +171,12 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         frame.dispose();
     }
 
-    private void isPacketReceived(DatagramPacket sizePacket, int port){
+    private void isPacketReceived(DatagramPacket sizePacket, int port) {
         boolean isPacketReceived = false;
-        while (!isPacketReceived) {
+        int attempts = 0;
+        final int MAX_ATTEMPTS = 3; // Número máximo de intentos permitidos
+
+        while (!isPacketReceived && attempts < MAX_ATTEMPTS) {
             // Enviar el paquete
             try {
                 socket.send(sizePacket);
@@ -189,12 +192,20 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+
             // Verificar si se recibió la confirmación del paquete
-            if(confirmationPacket.getAddress() != null){
+            if (confirmationPacket.getAddress() != null) {
                 if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
                     isPacketReceived = true;
                 }
             }
+
+            attempts++;
+        }
+
+        if (!isPacketReceived) {
+            // No se recibió la confirmación después de los intentos máximos permitidos
+            throw new RuntimeException("No se recibió la confirmación del paquete después de varios intentos.");
         }
     }
 
