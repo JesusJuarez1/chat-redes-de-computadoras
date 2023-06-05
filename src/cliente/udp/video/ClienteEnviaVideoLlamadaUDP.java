@@ -24,7 +24,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int FRAME_WIDTH = 640;
     private static final int FRAME_HEIGHT = 480;
     private static final int FPS = 30;
-    private static final int AUDIO_BUFFER_SIZE = 20000;
+    private static final int AUDIO_BUFFER_SIZE = 30000;
     private static final int BUFFER_SIZE = 48000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
@@ -142,12 +142,12 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 audioBuffer = new byte[AUDIO_BUFFER_SIZE];
                 // Capturar audio frame
                 int bytesRead = targetDataLine.read(audioBuffer, 0, AUDIO_BUFFER_SIZE);
-                // Compress audio buffer
-                byte[] compressedAudio = compressAudio(audioBuffer);
 
                 // Send video frame
                 sendData(compressedVideo, VIDEO_PORT);
 
+                // Compress audio buffer
+                byte[] compressedAudio = compressAudio(audioBuffer);
                 // Send audio buffer
                 sendData(compressedAudio, AUDIO_PORT);
             }
@@ -179,6 +179,11 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
     private void stopSending() {
         isRunning = false;
+        // Cleanup resources
+        videoCapture.release();
+        targetDataLine.stop();
+        targetDataLine.close();
+        socket.close();
         frame.dispose();
     }
 
@@ -187,7 +192,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         int attempts = 0;
         final int MAX_ATTEMPTS = 3; // Número máximo de intentos permitidos
 
-        while (!isPacketReceived && attempts < MAX_ATTEMPTS) {
+        while (!isPacketReceived) {
             // Enviar el paquete
             try {
                 socket.send(sizePacket);
@@ -199,7 +204,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
             long startTime = System.currentTimeMillis(); // Obtener el tiempo de inicio
 
-            while (true) {
+            while (attempts < MAX_ATTEMPTS) {
                 try {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     long remainingTime = TIMEOUT - elapsedTime;
@@ -208,7 +213,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                         break; // Se superó el tiempo de espera, salir del bucle interno
                     }
 
-                    socket.setSoTimeout((int) remainingTime);
+                    socket.setSoTimeout(TIMEOUT);
                     socket.receive(confirmationPacket);
 
                     // Verificar si se recibió la confirmación del paquete
@@ -224,12 +229,8 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
+                attempts++;
             }
-            attempts++;
-        }
-        if (!isPacketReceived) {
-            // No se recibió la confirmación después de los intentos máximos permitidos
-            //throw new RuntimeException("No se recibió la confirmación del paquete después de varios intentos.");
         }
     }
 

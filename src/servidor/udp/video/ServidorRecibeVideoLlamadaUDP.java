@@ -69,6 +69,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         byte[] sizeData = new byte[4];
         DatagramPacket sizePacket = new DatagramPacket(sizeData, sizeData.length);
         try {
+            socket.setSoTimeout(200);
             socket.receive(sizePacket);
             InetSocketAddress senderAddress = new InetSocketAddress(sizePacket.getAddress(), sizePacket.getPort());
 
@@ -77,13 +78,16 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             socket.send(confirmationPacket);
             return ByteBuffer.wrap(sizeData).getInt();
         } catch (IOException e) {
-            System.err.println("Error al recibir el tamaño de datos: " + e.getMessage());
+            //System.err.println("Error al recibir el tamaño de datos: " + e.getMessage());
             return 0;
         }
     }
 
     private byte[] receiveData(DatagramSocket socket) throws IOException {
         int totalBytes = receiveDataSize(socket);
+        while(totalBytes == 0){
+            totalBytes = receiveDataSize(socket);
+        }
         int receivedBytes = 0;
         int packetSize = 1460;
         byte[] receivedData = new byte[totalBytes];
@@ -94,29 +98,40 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
             byte[] buffer = new byte[packetBytes];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            byte[] prevBuffer = new byte[packetBytes];
+            DatagramPacket prevPacket = new DatagramPacket(prevBuffer, buffer.length);
             try {
+                socket.setSoTimeout(900);
                 socket.receive(packet);
-                // Crear objeto InetSocketAddress para representar la dirección del remitente
-                InetSocketAddress senderAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
                 byte[] confirmationData = {1};
                 DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length,
-                        senderAddress.getAddress(), senderAddress.getPort());
+                        packet.getAddress(), packet.getPort());
                 socket.send(confirmationPacket);
+                prevPacket = packet;
             } catch (IOException e) {
-                System.err.println("Error al recibir el paquete: " + e.getMessage());
-                throw e;
+                byte[] confirmationData = {1};
+                DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length,
+                        prevPacket.getAddress(), prevPacket.getPort());
+                socket.send(confirmationPacket);
+                packet.setData(prevBuffer);
+                //System.err.println("Error al recibir el paquete: " + e.getMessage());
+                //throw e;
+            }
+            if(packet.getData() == prevBuffer){
+                System.arraycopy(prevBuffer, 0, receivedData, receivedBytes, packetBytes);
+                receivedBytes += packetBytes;
+            }else{
+                System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
+                receivedBytes += packetBytes;
             }
 
-            System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
-            receivedBytes += packetBytes;
+
         }
         return receivedData;
     }
 
     public void start() {
-
-
         isRunning = true;
         sourceDataLine.start();
         while (isRunning) {
@@ -126,25 +141,36 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             try {
                 receivedData = receiveData(videoSocket);
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                System.err.println("Video " + e.getMessage());
+                //throw new RuntimeException(e);
             }
-            Mat frame = decodeFrame(receivedData);
-            BufferedImage image = matToBufferedImage(frame);
-            // Display video frame
-            ImageIcon icon = new ImageIcon(image);
-            videoLabel.setIcon(icon);
-            videoLabel.repaint();
+            if(receivedData != null){
+                Mat frame = decodeFrame(receivedData);
+                if(frame != null){
+                    BufferedImage image = matToBufferedImage(frame);
+                    // Display video frame
+                    ImageIcon icon = new ImageIcon(image);
+                    videoLabel.setIcon(icon);
+                    videoLabel.repaint();
+                }
+            }
 
             // Receive audio frame
             byte[] receivedDataAudio = new byte[0];
             try {
                 receivedDataAudio = receiveData(audioSocket);
             } catch (Exception e) {
+                System.err.println("Audio " + e.getMessage());
                 //throw new RuntimeException(e);
             }
-            receivedDataAudio = decompressAudio(receivedDataAudio);
-            // Last packet received, play the audio
-            sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+            if(receivedDataAudio != null){
+                receivedDataAudio = decompressAudio(receivedDataAudio);
+
+                if(receivedDataAudio != null){
+                    // Last packet received, play the audio
+                    sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+                }
+            }
         }
 
         // Cleanup resources
@@ -163,7 +189,9 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         try {
             decompressedSize = inflater.inflate(decompressedData);
         } catch (DataFormatException e) {
-            throw new RuntimeException("Error decompressing data: " + e.getMessage());
+            System.err.println("Descompresion " + e.getMessage());
+            //throw new RuntimeException("Error decompressing data: " + e.getMessage());
+            return null;
         }
         inflater.end();
 
