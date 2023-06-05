@@ -30,6 +30,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int AUDIO_PORT = 5001;
     private static final int TIMEOUT = 300;
     private volatile boolean isRunning;
+    final int MAX_ATTEMPTS = 3; // Número máximo de intentos permitidos
 
     private DatagramSocket socket;
     private InetAddress serverAddress;
@@ -189,8 +190,6 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
 
     private void isPacketReceived(DatagramPacket sizePacket, int port) {
         boolean isPacketReceived = false;
-        int attempts = 0;
-        final int MAX_ATTEMPTS = 3; // Número máximo de intentos permitidos
 
         while (!isPacketReceived) {
             // Enviar el paquete
@@ -199,6 +198,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            int attempts = 0;
 
             byte[] confirmationData = new byte[1];
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);

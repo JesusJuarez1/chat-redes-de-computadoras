@@ -83,7 +83,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         }
     }
 
-    private byte[] receiveData(DatagramSocket socket) throws IOException {
+    private byte[] receiveData(DatagramSocket socket) {
         int totalBytes = receiveDataSize(socket);
         while(totalBytes == 0){
             totalBytes = receiveDataSize(socket);
@@ -109,23 +109,26 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                         packet.getAddress(), packet.getPort());
                 socket.send(confirmationPacket);
                 prevPacket = packet;
+                prevBuffer = buffer;
             } catch (IOException e) {
                 byte[] confirmationData = {1};
                 DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length,
                         prevPacket.getAddress(), prevPacket.getPort());
-                socket.send(confirmationPacket);
+                try {
+                    socket.send(confirmationPacket);
+                } catch (IOException ex) {
+                    //throw new RuntimeException(ex);
+                }
                 packet.setData(prevBuffer);
                 //System.err.println("Error al recibir el paquete: " + e.getMessage());
                 //throw e;
             }
-            if(packet.getData() == prevBuffer){
+            if (packet.getData() == prevBuffer) {
                 System.arraycopy(prevBuffer, 0, receivedData, receivedBytes, packetBytes);
-                receivedBytes += packetBytes;
-            }else{
+            } else {
                 System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
-                receivedBytes += packetBytes;
             }
-
+            receivedBytes += packetBytes;
 
         }
         return receivedData;
@@ -148,10 +151,13 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 Mat frame = decodeFrame(receivedData);
                 if(frame != null){
                     BufferedImage image = matToBufferedImage(frame);
-                    // Display video frame
-                    ImageIcon icon = new ImageIcon(image);
-                    videoLabel.setIcon(icon);
-                    videoLabel.repaint();
+
+                    if(image != null){
+                        // Display video frame
+                        ImageIcon icon = new ImageIcon(image);
+                        videoLabel.setIcon(icon);
+                        videoLabel.repaint();
+                    }
                 }
             }
 
@@ -218,7 +224,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
         // Check if the dimensions are valid
         if (width <= 0 || height <= 0) {
-            System.err.println("Invalid image dimensions: width=" + width + ", height=" + height);
+            //System.err.println("Invalid image dimensions: width=" + width + ", height=" + height);
             return null;
         }
 
