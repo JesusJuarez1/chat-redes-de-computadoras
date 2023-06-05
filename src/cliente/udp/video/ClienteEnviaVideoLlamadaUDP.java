@@ -28,7 +28,7 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
     private static final int BUFFER_SIZE = 48000;
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
-    private static final int TIMEOUT = 300;
+    private static final int TIMEOUT = 400;
     private volatile boolean isRunning;
     final int MAX_ATTEMPTS = 3; // Número máximo de intentos permitidos
 
@@ -117,7 +117,6 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
                 videoLabel.repaint();
             }
         };
-
         worker.execute();
     }
 
@@ -184,54 +183,6 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
         frame.dispose();
     }
 
-    private void isPacketReceived(DatagramPacket sizePacket, int port) {
-        boolean isPacketReceived = false;
-        int attempts1 = 0;
-        int attempts = 0;
-
-        while (!isPacketReceived && attempts1 <= MAX_ATTEMPTS) {
-            // Enviar el paquete
-            try {
-                socket.send(sizePacket);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            byte[] confirmationData = new byte[1];
-            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
-            long startTime = System.currentTimeMillis(); // Obtener el tiempo de inicio
-
-            while (attempts < 6) {
-                try {
-                    long elapsedTime = System.currentTimeMillis() - startTime;
-                    long remainingTime = TIMEOUT - elapsedTime;
-
-                    if (remainingTime <= 0) {
-                        break; // Se superó el tiempo de espera, salir del bucle interno
-                    }
-
-                    socket.setSoTimeout((int) remainingTime);
-                    socket.receive(confirmationPacket);
-
-                    // Verificar si se recibió la confirmación del paquete
-                    if (confirmationPacket.getAddress() != null) {
-                        if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
-                            isPacketReceived = true;
-                            break; // Confirmación recibida, salir del bucle interno
-                        }
-                    }
-                } catch (SocketTimeoutException e) {
-                    // Se superó el tiempo de espera, continuar con el siguiente intento
-                    break;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                attempts++;
-            }
-            attempts1++;
-        }
-    }
-
     private void sendData(byte[] data, int port) {
         int totalBytes = data.length;
         int sentBytes = 0;
@@ -260,10 +211,47 @@ public class ClienteEnviaVideoLlamadaUDP extends Thread {
             try {
                 t.join(910);
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                //throw new RuntimeException(e);
+                return;
             }
 
             sentBytes += packetBytes;
+        }
+    }
+
+    private void isPacketReceived(DatagramPacket sizePacket, int port) {
+        boolean isPacketReceived = false;
+        int attempts = 0;
+
+        while (!isPacketReceived && attempts <= MAX_ATTEMPTS) {
+            // Enviar el paquete
+            try {
+                socket.send(sizePacket);
+            } catch (IOException e) {
+                //throw new RuntimeException(e);
+            }
+
+            byte[] confirmationData = new byte[1];
+            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);
+            long startTime = System.currentTimeMillis(); // Obtener el tiempo de inicio
+
+            try {
+                socket.setSoTimeout(TIMEOUT);
+                socket.receive(confirmationPacket);
+            } catch (SocketException e) {
+                //throw new RuntimeException(e);
+            } catch (IOException e) {
+                //throw new RuntimeException(e);
+            }
+
+            // Verificar si se recibió la confirmación del paquete
+            if (confirmationPacket.getAddress() != null) {
+                if (confirmationPacket.getAddress().equals(serverAddress) && confirmationPacket.getPort() == port) {
+                    isPacketReceived = true;
+                    break; // Confirmación recibida, salir del bucle interno
+                }
+            }
+            attempts++;
         }
     }
 

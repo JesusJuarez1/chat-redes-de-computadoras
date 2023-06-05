@@ -65,6 +65,66 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         }
     }
 
+    public void start() {
+        isRunning = true;
+        sourceDataLine.start();
+        while (isRunning) {
+
+            // Receive video frame
+            byte[] receivedData = null;
+            try {
+                receivedData = receiveData(videoSocket);
+            } catch (Exception e) {
+                //System.err.println("Video " + e.getMessage());
+                continue; // Salta a la siguiente iteración del bucle
+                //throw new RuntimeException(e);
+            }
+            if(receivedData != null){
+                Mat frame = decodeFrame(receivedData);
+                if(frame != null){
+                    BufferedImage image = matToBufferedImage(frame);
+
+                    if(image != null){
+                        // Display video frame
+                        ImageIcon icon = new ImageIcon(image);
+                        videoLabel.setIcon(icon);
+                        videoLabel.repaint();
+                    }
+                }
+            }
+
+            // Receive audio frame
+            byte[] receivedDataAudio = new byte[0];
+            try {
+                receivedDataAudio = receiveData(audioSocket);
+            } catch (Exception e) {
+                //System.err.println("Audio " + e.getMessage());
+                continue;
+                //throw new RuntimeException(e);
+            }
+            if(receivedDataAudio != null){
+                receivedDataAudio = decompressAudio(receivedDataAudio);
+
+                if(receivedDataAudio != null){
+                    // Last packet received, play the audio
+                    try {
+                        sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
+                    }catch (IllegalArgumentException e){
+
+                    }catch (Exception e ){
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // Cleanup resources
+        videoSocket.close();
+        audioSocket.close();
+        sourceDataLine.stop();
+        sourceDataLine.close();
+    }
+
     private int receiveDataSize(DatagramSocket socket) {
         byte[] sizeData = new byte[4];
         DatagramPacket sizePacket = new DatagramPacket(sizeData, sizeData.length);
@@ -148,64 +208,6 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
         }
         return receivedData;
-    }
-
-    public void start() {
-        isRunning = true;
-        sourceDataLine.start();
-        while (isRunning) {
-
-            // Receive video frame
-            byte[] receivedData = null;
-            try {
-                receivedData = receiveData(videoSocket);
-            } catch (Exception e) {
-                //System.err.println("Video " + e.getMessage());
-                continue; // Salta a la siguiente iteración del bucle
-                //throw new RuntimeException(e);
-            }
-            if(receivedData != null){
-                Mat frame = decodeFrame(receivedData);
-                if(frame != null){
-                    BufferedImage image = matToBufferedImage(frame);
-
-                    if(image != null){
-                        // Display video frame
-                        ImageIcon icon = new ImageIcon(image);
-                        videoLabel.setIcon(icon);
-                        videoLabel.repaint();
-                    }
-                }
-            }
-
-            // Receive audio frame
-            byte[] receivedDataAudio = new byte[0];
-            try {
-                receivedDataAudio = receiveData(audioSocket);
-            } catch (Exception e) {
-                //System.err.println("Audio " + e.getMessage());
-                continue;
-                //throw new RuntimeException(e);
-            }
-            if(receivedDataAudio != null){
-                receivedDataAudio = decompressAudio(receivedDataAudio);
-
-                if(receivedDataAudio != null){
-                    // Last packet received, play the audio
-                    try {
-                        sourceDataLine.write(receivedDataAudio, 0, receivedDataAudio.length);
-                    }catch (IllegalArgumentException e){
-
-                    }
-                }
-            }
-        }
-
-        // Cleanup resources
-        videoSocket.close();
-        audioSocket.close();
-        sourceDataLine.stop();
-        sourceDataLine.close();
     }
 
     private byte[] decompressAudio(byte[] compressedData) {
