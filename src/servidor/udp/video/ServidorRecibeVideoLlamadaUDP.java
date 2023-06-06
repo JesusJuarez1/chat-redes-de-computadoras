@@ -132,7 +132,9 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             socket.setSoTimeout(200);
             socket.receive(sizePacket);
             InetSocketAddress senderAddress = new InetSocketAddress(sizePacket.getAddress(), sizePacket.getPort());
-            this.setAddress(String.valueOf(sizePacket.getAddress()));
+            if(address == ""){
+                address = String.valueOf(senderAddress.getAddress());
+            }
             byte[] confirmationData = {1};
             DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length, senderAddress.getAddress(), senderAddress.getPort());
             socket.send(confirmationPacket);
@@ -152,7 +154,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         int packetSize = 1460;
         byte[] receivedData = new byte[totalBytes];
 
-        while (receivedBytes < totalBytes) {
+        while (receivedBytes < totalBytes && receivedData.length >= receivedBytes) {
             int remainingBytes = totalBytes - receivedBytes;
             int packetBytes = Math.min(packetSize, remainingBytes);
 
@@ -176,12 +178,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                         prevPacket.getAddress(), prevPacket.getPort());
                 try {
                     socket.send(confirmationPacket);
-                } catch (IOException ex) {
-                    //throw new RuntimeException(ex);
-                }
-                //packet.setData(prevBuffer);
-                //System.err.println("Error al recibir el paquete: " + e.getMessage());
-                //throw e;
+                } catch (IOException ex) {}
             }
 
             if(packet.getData() != null){
@@ -193,7 +190,8 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                     }
                 }
                 if (!isEmpty) {
-                    System.arraycopy(prevBuffer, 0, receivedData, receivedBytes, packetBytes);
+                    int bytesToCopy = Math.min(packetBytes, receivedData.length - receivedBytes);
+                    System.arraycopy(prevBuffer, 0, receivedData, receivedBytes, bytesToCopy);
                 } else {
                     System.arraycopy(buffer, 0, receivedData, receivedBytes, packetBytes);
                 }
@@ -202,7 +200,8 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
                 byte[] fillerData = new byte[packetBytes];
                 // Rellenar el buffer con datos de relleno (por ejemplo, ceros)
                 Arrays.fill(fillerData, (byte) 0);
-                System.arraycopy(fillerData, 0, receivedData, receivedBytes, packetBytes);
+                int bytesToCopy = Math.min(packetBytes, receivedData.length - receivedBytes);
+                System.arraycopy(fillerData, 0, receivedData, receivedBytes, bytesToCopy);
             }
             receivedBytes += packetSize;
 
@@ -263,10 +262,6 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
 
     public boolean isRunning() {
         return isRunning;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
     }
 
     public String getAddress() {

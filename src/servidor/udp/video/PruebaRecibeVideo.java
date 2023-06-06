@@ -11,20 +11,20 @@ public class PruebaRecibeVideo {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         ServidorRecibeVideoLlamadaUDP servidor = new ServidorRecibeVideoLlamadaUDP();
         servidor.start();
+        ClienteEnviaVideoLlamadaUDP cliente = null;
         while(servidor.isRunning()){
             if (servidor.getAddress() != "") {
-                break;
+                try {
+                    cliente = new ClienteEnviaVideoLlamadaUDP(servidor.getAddress(), new DatagramSocket());
+                    break;
+                } catch (SocketException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
-        ClienteEnviaVideoLlamadaUDP cliente = null;
-        if (servidor.getAddress() != "") {
-            try {
-                cliente = new ClienteEnviaVideoLlamadaUDP(servidor.getAddress(), new DatagramSocket());
-            } catch (SocketException e) {
-                throw new RuntimeException(e);
-            }
-            cliente.start();
-        }
+
+        cliente.start();
+
         servidor.join();
         cliente.interrupt();
 
