@@ -13,6 +13,7 @@ public class PruebaRecibeVideo {
         servidor.start();
         ClienteEnviaVideoLlamadaUDP cliente = null;
         while(true){
+            System.out.println();
             if (servidor.getAddress() != null) {
                 try {
                     cliente = new ClienteEnviaVideoLlamadaUDP(servidor.getAddress().substring(1), new DatagramSocket());
