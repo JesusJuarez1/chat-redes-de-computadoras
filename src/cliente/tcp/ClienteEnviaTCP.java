@@ -36,9 +36,10 @@ public class ClienteEnviaTCP extends Thread{
         // Código para enviar archivo
         try {
             FileInputStream fis = new FileInputStream(archivo);
+            //Se envía el nombre del archivo al servidor usando
             out.writeUTF(archivo.getName());
 
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[1460];
             int bytesRead;
             long bytesEnviados = 0;
             long bytesEnviadosPorSegundo = 0;

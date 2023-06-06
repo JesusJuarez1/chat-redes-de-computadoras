@@ -20,9 +20,6 @@ public class ClienteEscuchaUDP extends Thread{
         PUERTO_CLIENTE=socket.getLocalPort();
     }
     public void run() {
-        byte[] mensaje_bytes;
-        String mensaje="";
-        mensaje_bytes=mensaje.getBytes();
         
         String cadenaMensaje="";
 

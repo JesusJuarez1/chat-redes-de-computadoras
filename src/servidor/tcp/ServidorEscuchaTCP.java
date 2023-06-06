@@ -40,7 +40,7 @@ public class ServidorEscuchaTCP extends Thread {
                 String rutaArchivo = "archivos/" + nombreArchivo;
                 FileOutputStream fileOutputStream = new FileOutputStream(rutaArchivo);
 
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[1460];
                 int bytesRead;
                 long bytesRecibidosPorSegundo = 0;
                 long startTime = System.nanoTime();
