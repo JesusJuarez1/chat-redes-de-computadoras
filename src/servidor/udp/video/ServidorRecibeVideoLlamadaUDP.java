@@ -23,7 +23,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
     private static final int VIDEO_PORT = 5000;
     private static final int AUDIO_PORT = 5001;
 
-    protected String address = "";
+    protected String address = null;
 
     private final DatagramSocket videoSocket;
     private final DatagramSocket audioSocket;
@@ -65,7 +65,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
         }
     }
 
-    public void start() {
+    public void run() {
         isRunning = true;
         sourceDataLine.start();
         while (isRunning) {
@@ -132,7 +132,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             socket.setSoTimeout(200);
             socket.receive(sizePacket);
             InetSocketAddress senderAddress = new InetSocketAddress(sizePacket.getAddress(), sizePacket.getPort());
-            if(address == ""){
+            if(address == null){
                 address = String.valueOf(senderAddress.getAddress());
             }
             byte[] confirmationData = {1};

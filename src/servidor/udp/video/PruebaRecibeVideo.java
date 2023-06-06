@@ -12,10 +12,10 @@ public class PruebaRecibeVideo {
         ServidorRecibeVideoLlamadaUDP servidor = new ServidorRecibeVideoLlamadaUDP();
         servidor.start();
         ClienteEnviaVideoLlamadaUDP cliente = null;
-        while(servidor.isRunning()){
-            if (servidor.getAddress() != "") {
+        while(true){
+            if (servidor.getAddress() != null) {
                 try {
-                    cliente = new ClienteEnviaVideoLlamadaUDP(servidor.getAddress(), new DatagramSocket());
+                    cliente = new ClienteEnviaVideoLlamadaUDP(servidor.getAddress().substring(1), new DatagramSocket());
                     break;
                 } catch (SocketException e) {
                     throw new RuntimeException(e);
