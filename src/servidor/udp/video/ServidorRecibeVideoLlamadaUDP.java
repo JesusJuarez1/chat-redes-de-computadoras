@@ -75,9 +75,7 @@ public class ServidorRecibeVideoLlamadaUDP extends Thread {
             try {
                 receivedData = receiveData(videoSocket);
             } catch (Exception e) {
-                //System.err.println("Video " + e.getMessage());
                 continue; // Salta a la siguiente iteración del bucle
-                //throw new RuntimeException(e);
             }
             if(receivedData != null){
                 Mat frame = decodeFrame(receivedData);
